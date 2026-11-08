@@ -65,7 +65,12 @@ def sentence_length_spread(text: str) -> float:
     before the attack set decides for you.
     """
     # TODO: replace this
-    return 0.0
+    lengths = [len(words(s)) for s in sentences(text)]
+    lengths = [n for n in lengths if n > 0]
+    if len(lengths) < 2:
+        return 0.0          # one sentence = no spread to measure
+    return statistics.stdev(lengths) / statistics.mean(lengths)
+
 
 
 def type_token_ratio(text: str) -> float:
@@ -81,7 +86,11 @@ def type_token_ratio(text: str) -> float:
     that alone can look like a signal.
     """
     # TODO: replace this
-    return 0.0
+    w = words(text)
+    if not w:
+        return 0.0
+    return len(set(w)) / len(w)
+
 
 
 def punctuation_density(text: str) -> float:
@@ -95,10 +104,18 @@ def punctuation_density(text: str) -> float:
         writers.
     """
     # TODO: replace this
-    return 0.0
+    w = words(text)
+    if not w:
+        return 0.0
+    marks = re.findall(r"[,;:\-—()!?]", text)
+    return len(marks) / len(w)
+
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
+
+def _clamp(x: float) -> float:
+    return max(0.0, min(1.0, x))
 
 def style_signal(text: str) -> float:
     """
@@ -123,7 +140,16 @@ def style_signal(text: str) -> float:
     to signal one, and it is plain writing that gets accused.
     """
     # TODO: replace this
-    return 0.5
+    if len(sentences(text)) < 2 or len(words(text)) < 10:
+        return 0.5
+
+    # Scale each measure to 0-1 where 1 = AI-like
+    spread_ai = 1 - _clamp(sentence_length_spread(text) / 0.8)    # human ~0.6+, AI ~0.3
+    ttr_ai    = 1 - _clamp((type_token_ratio(text) - 0.4) / 0.5)  # 0.4..0.9 range
+    punct_ai  = 1 - _clamp(punctuation_density(text) / 0.15)      # 0.15 marks/word = very varied
+
+    score = 0.45 * spread_ai + 0.35 * ttr_ai + 0.20 * punct_ai
+    return round(score, 4)
 
 
 if __name__ == "__main__":
