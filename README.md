@@ -133,7 +133,7 @@ is implemented.
 | ---------------- | ------ | ---------------------------------------------------- |
 | `content_id`     | string | Unique ID for this submission and future appeals.    |
 | `guess`          | string | Machine-readable result: `human`, `unsure`, or `ai`. |
-| `confidence`     | number | Confidence score from `0.0` to `1.0`.                |
+| `confidence`     | number | How strongly the score leans either way, `0.0`–`1.0`: `abs(combined_score − 0.5) × 2`. |
 | `label`          | string | Reader-facing explanation of the result.             |
 | `model_score`    | number | Predictability-based score from `detector.py`.       |
 | `style_score`    | number | Surface-style score from `stylometry.py`.            |
@@ -297,19 +297,26 @@ appeal. Even at the high end, this tool has produced false positives.
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
+This run shows the case the appeal path exists for: a real person's plain
+writing labelled AI (the false positive described under the combining rule),
+then appealed.
+
 ```bash
-$ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{\"text\": \"I learned that software decisions should be tested with evidence and recorded clearly.\", \"creator_id\": \"student-1\"}'
+$ curl -X POST http://127.0.0.1:5000/submit \
+  -H "Content-Type: application/json" \
+  -d '{"text": "I went to the store after work to get some milk and bread. The store was busy because it was Friday. I waited in line for about ten minutes. Then I drove home and made dinner for my family. After dinner we watched a movie together. It was a good day and I went to bed early.", "creator_id": "student-1"}'
 ```
 
 ```json
 {
-  "confidence": null,
-  "content_id": "014a1830-4af4-427c-a5f0-781902bfc16e",
+  "combined_score": 0.7688,
+  "confidence": 0.5376,
+  "content_id": "d9e5b774-4bc6-4a49-8779-1fffe80fea30",
   "creator_id": "student-1",
-  "guess": null,
-  "label": null,
-  "model_score": 0.0603,
-  "style_score": null
+  "guess": "ai",
+  "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+  "model_score": 0.8824,
+  "style_score": 0.6551
 }
 ```
 
@@ -318,33 +325,64 @@ $ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/js
 ```bash
 $ curl -X POST http://127.0.0.1:5000/appeal \
   -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
-```
-
-```json
-
-```
-
-**What the log shows afterwards**
-
-```bash
-$ curl.exe "http://127.0.0.1:5000/log?limit=3"
+  -d '{"content_id": "d9e5b774-4bc6-4a49-8779-1fffe80fea30", "reasoning": "I wrote this myself about my Friday evening. I just write in a simple, plain style."}'
 ```
 
 ```json
 {
-  "count": 1,
+  "content_id": "d9e5b774-4bc6-4a49-8779-1fffe80fea30",
+  "message": "Appeal recorded.",
+  "status": "under_review"
+}
+```
+
+An unknown ID is refused rather than creating an orphan appeal:
+
+```bash
+$ curl -X POST http://127.0.0.1:5000/appeal \
+  -H "Content-Type: application/json" \
+  -d '{"content_id": "does-not-exist", "reasoning": "test"}'
+```
+
+```json
+HTTP 404
+{
+  "error": "not_found",
+  "message": "No submission found with content_id 'does-not-exist'."
+}
+```
+
+**What the log shows afterwards**
+
+The original decision is untouched; the appeal is a new entry after it with
+status `under_review` and the writer's reasoning.
+
+```bash
+$ curl "http://127.0.0.1:5000/log?limit=2"
+```
+
+```json
+{
+  "count": 2,
   "entries": [
     {
-      "combined_score": null,
-      "content_id": "014a1830-4af4-427c-a5f0-781902bfc16e",
+      "combined_score": 0.7688,
+      "content_id": "d9e5b774-4bc6-4a49-8779-1fffe80fea30",
       "creator_id": "student-1",
-      "guess": null,
-      "label": null,
-      "model_score": 0.0603,
+      "guess": "ai",
+      "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+      "model_score": 0.8824,
       "status": "decided",
-      "style_score": null,
-      "timestamp": "2026-11-05T00:25:11+00:00"
+      "style_score": 0.6551,
+      "timestamp": "2026-11-08T18:11:54+00:00"
+    },
+    {
+      "content_id": "d9e5b774-4bc6-4a49-8779-1fffe80fea30",
+      "creator_id": "student-1",
+      "event": "appeal",
+      "reasoning": "I wrote this myself about my Friday evening. I just write in a simple, plain style.",
+      "status": "under_review",
+      "timestamp": "2026-11-08T18:11:54+00:00"
     }
   ]
 }

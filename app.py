@@ -210,23 +210,28 @@ def submit():
     model_score = detector.model_signal(text)
     style_score = stylometry.style_signal(text)
     combined_score = scoring.combine_signals(model_score, style_score)
+    guess, label = scoring.score_to_label(combined_score)
+    # Confidence: how far the score sits from the 0.5 midpoint, rescaled to
+    # 0–1. 0.0 = no lean either way, 1.0 = as far toward one end as possible.
+    confidence = round(abs(combined_score - 0.5) * 2, 4)
 
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
-        guess=None,
+        guess=guess,
         model_score=model_score,
         style_score=style_score,
         combined_score=combined_score,
+        label=label,
         status="decided",
     )
 
     return jsonify({
         "content_id": content_id,
         "creator_id": creator_id,
-        "guess": None,
-        "confidence": None,
-        "label": None,
+        "guess": guess,
+        "confidence": confidence,
+        "label": label,
         "model_score": model_score,
         "style_score": style_score,
         "combined_score": combined_score,
@@ -255,12 +260,37 @@ def appeal():
     """
     payload = request.get_json(silent=True) or {}
 
-    # TODO: delete this and build the route.
+    content_id = str(payload.get("content_id") or "").strip()
+    reasoning = str(payload.get("reasoning") or "").strip()
+
+    if not content_id or not reasoning:
+        return jsonify({
+            "error": "invalid_request",
+            "message": "Both 'content_id' and 'reasoning' are required.",
+        }), 400
+
+    # 1. The content_id must belong to a real earlier decision.
+    history = audit.entries_for(content_id)
+    original = next((e for e in history if e.get("status") == "decided"), None)
+    if original is None:
+        return jsonify({
+            "error": "not_found",
+            "message": f"No submission found with content_id '{content_id}'.",
+        }), 404
+
+    # 2. Append the appeal next to the original decision (status -> under_review).
+    audit.log_appeal(
+        content_id=content_id,
+        creator_id=original.get("creator_id", "unknown"),
+        reasoning=reasoning,
+    )
+
+    # 3. Confirm to the writer.
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+        "content_id": content_id,
+        "status": "under_review",
+        "message": "Appeal recorded.",
+    }), 200
 
 
 # ── Already works ─────────────────────────────────────────────────────────────
