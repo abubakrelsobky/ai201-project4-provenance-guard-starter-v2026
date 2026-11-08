@@ -57,6 +57,11 @@ DETECTOR_MAX_TOKENS = 400
 WEIGHT_MODEL_SIGNAL = 0.5
 WEIGHT_STYLE_SIGNAL = 0.5
 
+# Disagreement rule: if the two signals are further apart than this, the
+# combined score is capped just below AI_THRESHOLD. One signal alone is never
+# enough to label something AI — a split between two methods IS uncertainty.
+DISAGREEMENT_GAP = 0.35
+
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
 # Where one label becomes another. Scores run 0.0 (confidently human) to 1.0

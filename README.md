@@ -174,9 +174,41 @@ entry records the writer's reasoning.
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:**
+**The rule:** Take a weighted average of the two signals. If the two signals
+disagree by a lot, the text can't be labelled AI: the score is capped just
+below the AI threshold, so the most it can get is "unsure". One method on its
+own is never enough to accuse someone. The cap only works in one direction:
+disagreement can stop an AI label, but it never pushes a score toward AI.
 
-**The numbers:**
+**The numbers:** (in `config.py`)
+
+- `WEIGHT_MODEL_SIGNAL = 0.5`, `WEIGHT_STYLE_SIGNAL = 0.5`. The signals count
+  equally. Neither one proved more trustworthy in testing, because both are
+  fooled by plain writing.
+- `DISAGREEMENT_GAP = 0.35`. If `|model_score − style_score| > 0.35`, the
+  combined score is capped at `AI_THRESHOLD − 0.01` (0.64).
+- `HUMAN_THRESHOLD = 0.35`, `AI_THRESHOLD = 0.65`.
+
+**Calibration run** (four required inputs, plus two extras):
+
+| Input | model | style | combined | Band |
+|---|---|---|---|---|
+| Clearly AI | 0.8669 | 0.5657 | 0.7163 | AI |
+| Clearly human | 0.5011 | 0.0659 | 0.2835 | human |
+| Formal human | 0.5727 | 0.3931 | 0.4829 | unsure |
+| Lightly-edited AI | 0.6818 | 0.5577 | 0.6198 | unsure |
+| Plain human (extra) | 0.8824 | 0.6551 | 0.7688 | **AI: false positive** |
+| Split case A (extra) | 0.8493 | 0.3909 | 0.6201 | unsure |
+
+- **Formal human** isn't accused. It lands in unsure, mostly because the style
+  signal reads its varied punctuation and sentence lengths as human.
+- **Lightly-edited AI** drops from AI to unsure. Simplifying the words was
+  enough to pull the model signal down from 0.87 to 0.68.
+- **Plain human is the known failure.** Both signals score it *higher* than
+  the clearly AI text. Short, predictable words fool the model signal, and
+  flat sentence lengths with no punctuation fool the style signal. A combining
+  rule can't fix a case where both inputs are wrong in the same direction.
+  The fix would have to come from the signals themselves.
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -184,6 +216,33 @@ entry records the writer's reasoning.
      somewhere else, say where. -->
 
 **A case where my two signals split, and what my rule does with it:**
+
+I ran both signals over three test pieces:
+
+| Piece | model_score | style_score |
+|---|---|---|
+| A: clearly AI (generic "AI has transformed modern life…" paragraph) | 0.8493 | 0.3909 |
+| B: clearly human (casual, lumpy "missed the bus again" rant) | 0.4953 | 0.0857 |
+| C: plain human (flat "went to the store after work" diary entry) | 0.8576 | 0.5873 |
+
+- **Agree:** B. Both signals score it as the most human.
+- **Split:** A. The model signal says strongly AI (0.85). The style signal leans
+  human (0.39), because a short paragraph has a high type-token ratio (0.84)
+  and only moderate sentence spread (0.43).
+- **Agree, but wrong:** C. Both signals lean AI on a real human's plain
+  writing. The model scores it *higher* than the actual AI text, because
+  simple, predictable words read as "likely" text. This is the false-accusation
+  case.
+
+My combining rule has to handle A: one signal is confident and the other
+isn't. It also has to avoid labelling C as AI.
+
+**What my rule does with A:** the signals are 0.46 apart, which is more than
+`DISAGREEMENT_GAP` (0.35). So A can't be labelled AI, and it lands in
+**unsure** (0.62). With these numbers the average was already below 0.65, so
+the cap didn't change anything. But if the model had said 0.95 against a style
+score of 0.40, the plain average (0.675) would have been an accusation. The
+cap holds it at 0.64.
 
 ---
 
