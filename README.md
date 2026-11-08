@@ -255,11 +255,29 @@ cap holds it at 0.64.
 
 | Label                 | Score range | The exact text a reader sees |
 | --------------------- | ----------- | ---------------------------- |
-| high-confidence human |             |                              |
-| unsure                |             |                              |
-| high-confidence AI    |             |                              |
+| high-confidence human | 0.00 – 0.35 | "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing." |
+| unsure                | above 0.35, below 0.65 | "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way." |
+| high-confidence AI    | 0.65 – 1.00 | "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it." |
 
-**Why I worded the "unsure" one this way:**
+A score of exactly 0.35 counts as human, and exactly 0.65 counts as AI (see
+`scoring.py::score_to_label`).
+
+**Why I worded the "unsure" one this way:** The person reading it may well
+have written every word themselves. My own testing shows plain human writing
+scoring as high as real AI text, so "unsure" has to read as a statement about
+*our tool's limits*, not about the writer. That's why it:
+
+- leads with "we can't tell", which puts the uncertainty on us and not on them
+- says outright that mixed results are common for real human writing, and
+  names plain and formal styles, because those are the writers most likely to
+  get this label
+- says it is not an accusation or evidence, so a teacher or editor reading it
+  doesn't treat it as a soft "AI" label
+- never mentions scores, thresholds or confidence numbers, because "0.52" means
+  nothing to a writer and sounds more certain than it is
+
+The AI label also stays hedged ("likely", "can be wrong") and points to the
+appeal. Even at the high end, this tool has produced false positives.
 
 <!-- It's the hardest of the three. It has to admit uncertainty without
      sounding like an accusation, because the person reading it may well have
