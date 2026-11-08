@@ -122,22 +122,22 @@ is implemented.
 
 **Request body:** JSON object with these fields:
 
-| Field | Type | Required | Meaning |
-|---|---|---|---|
-| `text` | string | yes | The writing to evaluate. It must not be empty. |
-| `creator_id` | string | yes | Identifies the person submitting the writing. |
+| Field        | Type   | Required | Meaning                                        |
+| ------------ | ------ | -------- | ---------------------------------------------- |
+| `text`       | string | yes      | The writing to evaluate. It must not be empty. |
+| `creator_id` | string | yes      | Identifies the person submitting the writing.  |
 
 **Successful response:** HTTP `200`, JSON object with these fields:
 
-| Field | Type | Meaning |
-|---|---|---|
-| `content_id` | string | Unique ID for this submission and future appeals. |
-| `guess` | string | Machine-readable result: `human`, `unsure`, or `ai`. |
-| `confidence` | number | Confidence score from `0.0` to `1.0`. |
-| `label` | string | Reader-facing explanation of the result. |
-| `model_score` | number | Predictability-based score from `detector.py`. |
-| `style_score` | number | Surface-style score from `stylometry.py`. |
-| `combined_score` | number | Final score produced by combining both signals. |
+| Field            | Type   | Meaning                                              |
+| ---------------- | ------ | ---------------------------------------------------- |
+| `content_id`     | string | Unique ID for this submission and future appeals.    |
+| `guess`          | string | Machine-readable result: `human`, `unsure`, or `ai`. |
+| `confidence`     | number | Confidence score from `0.0` to `1.0`.                |
+| `label`          | string | Reader-facing explanation of the result.             |
+| `model_score`    | number | Predictability-based score from `detector.py`.       |
+| `style_score`    | number | Surface-style score from `stylometry.py`.            |
+| `combined_score` | number | Final score produced by combining both signals.      |
 
 The service also writes the decision to the audit log with status `decided`.
 
@@ -148,18 +148,18 @@ The service also writes the decision to the audit log with status `decided`.
 
 **Request body:** JSON object with these fields:
 
-| Field | Type | Required | Meaning |
-|---|---|---|---|
-| `content_id` | string | yes | ID returned by an earlier `/submit` request. |
-| `reasoning` | string | yes | The writer's explanation for challenging the decision. |
+| Field        | Type   | Required | Meaning                                                |
+| ------------ | ------ | -------- | ------------------------------------------------------ |
+| `content_id` | string | yes      | ID returned by an earlier `/submit` request.           |
+| `reasoning`  | string | yes      | The writer's explanation for challenging the decision. |
 
 **Successful response:** HTTP `200`, JSON object containing:
 
 ```json
 {
-     "content_id": "the-original-id",
-     "status": "under_review",
-     "message": "Appeal recorded."
+  "content_id": "the-original-id",
+  "status": "under_review",
+  "message": "Appeal recorded."
 }
 ```
 
@@ -221,13 +221,19 @@ entry records the writer's reasoning.
      diagnostics. -->
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
-  -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+$ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{\"text\": \"I learned that software decisions should be tested with evidence and recorded clearly.\", \"creator_id\": \"student-1\"}'
 ```
 
 ```json
-
+{
+  "confidence": null,
+  "content_id": "014a1830-4af4-427c-a5f0-781902bfc16e",
+  "creator_id": "student-1",
+  "guess": null,
+  "label": null,
+  "model_score": 0.0603,
+  "style_score": null
+}
 ```
 
 **An appeal**
@@ -245,11 +251,26 @@ $ curl -X POST http://127.0.0.1:5000/appeal \
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl.exe "http://127.0.0.1:5000/log?limit=3"
 ```
 
 ```json
-
+{
+  "count": 1,
+  "entries": [
+    {
+      "combined_score": null,
+      "content_id": "014a1830-4af4-427c-a5f0-781902bfc16e",
+      "creator_id": "student-1",
+      "guess": null,
+      "label": null,
+      "model_score": 0.0603,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-11-05T00:25:11+00:00"
+    }
+  ]
+}
 ```
 
 ---
