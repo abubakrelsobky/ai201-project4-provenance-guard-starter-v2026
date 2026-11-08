@@ -392,17 +392,33 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
 
 ## How I Used AI
 
-**Moment 1**
+**Moment 1: the combining rule**
 
-- _What I asked for:_
-- _What came back:_
-- _What I changed:_
+- _What I asked for:_ I asked Claude to run both signals over three test pieces
+  and suggest how to combine them.
+- _What came back:_ Its suggested rule was "only label AI when *both* signals
+  are above 0.65", to stop the plain-human false positive.
+- _What I changed:_ Then I ran the four required calibration inputs. The
+  clearly AI text only got a style score of 0.57, so under that rule the AI
+  label would have been almost impossible to reach. I replaced it with a
+  50/50 weighted average plus a disagreement cap: if the two signals are more
+  than 0.35 apart, the score is held at 0.64 ("unsure"). That still stops one
+  signal from accusing on its own, but it keeps all three labels reachable. I
+  also accepted that the plain-human false positive can't be fixed in the
+  combining rule, because both signals are wrong on it, and documented it
+  instead.
 
-**Moment 2**
+**Moment 2: committing the audit log**
 
-- _What I asked for:_
-- _What came back:_
-- _What I changed:_
+- _What I asked for:_ I asked how to commit my Milestone 3 work properly.
+- _What came back:_ The advice was to leave `logs/audit.jsonl` out of the
+  commit as "runtime data", and to commit everything else.
+- _What I changed:_ The lab says the log is deliberately *not* gitignored,
+  because it is the evidence that logging works. The grader matches the
+  `content_id` values in my Sample Run against it. I committed the log, and
+  split the work into several smaller commits. Reviewing the diff also turned
+  up an accidental change in `config.py` (rate limiting switched on by
+  default). That's a unit 8 setting, so I kept it out of my unit 7 commits.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 

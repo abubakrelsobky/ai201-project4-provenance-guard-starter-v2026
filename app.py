@@ -204,8 +204,21 @@ def submit():
     """
     payload = request.get_json(silent=True) or {}
 
-    text = payload.get("text", "")
-    creator_id = payload.get("creator_id", "unknown")
+    text = payload.get("text")
+    creator_id = payload.get("creator_id")
+
+    # Invalid input is refused before any scoring: no label, no decision logged.
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({
+            "error": "invalid_request",
+            "message": "'text' is required and must be non-empty.",
+        }), 400
+    if not isinstance(creator_id, str) or not creator_id.strip():
+        return jsonify({
+            "error": "invalid_request",
+            "message": "'creator_id' is required.",
+        }), 400
+
     content_id = str(uuid.uuid4())
     model_score = detector.model_signal(text)
     style_score = stylometry.style_signal(text)
