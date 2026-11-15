@@ -426,7 +426,7 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
 
 ## Rate Limiting
 
-**My limits:** **_ per minute, _** per day
+**My limits:** **5 per minute, 50** per day
 
 **Why those numbers and not others:**
 
@@ -435,17 +435,30 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
      thresholds. Your numbers have to be liveable for the first and hostile to
      the second. -->
 
+A real writer submits their own work a few times an hour at most, so 5 a
+minute and 50 a day never get in their way, even with a few retries. A script
+trying to map my thresholds needs hundreds or thousands of probes; at 50 a day
+that takes weeks per creator_id instead of minutes. Higher numbers would let a
+script learn the thresholds in one sitting; lower ones would start blocking
+writers who re-submit after editing.
+
 **What a caller counts as:** <!-- per address, or per creator_id? They fail
 differently — one script can look like a thousand callers, and one household
 can look like one. -->
+Per `creator_id` when one is sent, falling back to the caller's IP address.
+The weakness: a script can rotate creator_ids to look like many callers.
 
 **The run of status codes when I pushed past it:**
 
 <!-- python run_attacks.py --flood 15 -->
 
 ```
-
+200 200 200 200 200 429 429 429 429 429 429 429 429 429 429
 ```
+
+10 of 15 were rate limited, and all 10 rejections appear in `logs/audit.jsonl`
+with `"status": "rejected", "reason": "rate_limited"`. Requests my own route
+refuses (400 for missing `text` or `creator_id`) are logged the same way.
 
 ---
 

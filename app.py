@@ -209,11 +209,16 @@ def submit():
 
     # Invalid input is refused before any scoring: no label, no decision logged.
     if not isinstance(text, str) or not text.strip():
+        audit.log_rejection(
+            creator_id=creator_id if isinstance(creator_id, str) else "unknown",
+            reason="missing_text",
+        )
         return jsonify({
             "error": "invalid_request",
             "message": "'text' is required and must be non-empty.",
         }), 400
     if not isinstance(creator_id, str) or not creator_id.strip():
+        audit.log_rejection(creator_id="unknown", reason="missing_creator_id")
         return jsonify({
             "error": "invalid_request",
             "message": "'creator_id' is required.",
