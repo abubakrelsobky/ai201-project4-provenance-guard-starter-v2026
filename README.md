@@ -573,6 +573,40 @@ submits the ten label-coverage texts, appeals each one, and reads the log back
 decimal of every score. Neither signal has any randomness in it, so this is
 what a stable pipeline should look like.
 
+**All three trials, as printed.** Produced by `run_eval.py::main` (criteria 1,
+2, 3, 5) and `check_appeals.py::main` (criterion 4). The full JSON for every
+trial is in the two results files linked above.
+
+```
+my own writing  (criterion 1)
+  trial 1: unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure
+  trial 2: unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure
+  trial 3: unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure, unsure
+
+bad input  (criterion 2)
+  trial 1: —, —, —, —, —, —, —, —, —, —
+  trial 2: —, —, —, —, —, —, —, —, —, —
+  trial 3: —, —, —, —, —, —, —, —, —, —
+
+label coverage  (criterion 3)
+  trial 1: ai, ai, unsure, human, human, human, human, unsure, unsure, human
+  trial 2: ai, ai, unsure, human, human, human, human, unsure, unsure, human
+  trial 3: ai, ai, unsure, human, human, human, human, unsure, unsure, human
+
+unsure rate  (criterion 5)
+  trial 1: unsure, ai, ai, human, ai, ai, human, human, human, unsure
+  trial 2: unsure, ai, ai, human, ai, ai, human, human, human, unsure
+  trial 3: unsure, ai, ai, human, ai, ai, human, human, human, unsure
+
+appeals  (criterion 4)
+trial 1: recorded 10/10, changed 0/10
+trial 2: recorded 10/10, changed 0/10
+trial 3: recorded 10/10, changed 0/10
+```
+
+In criterion 2, `—` means no label came back. All 30 bad-input requests
+returned `400` with `"guess": null`.
+
 **Criterion 1 is MET, but only just.** My ten pieces are the seven paragraphs
 of my College Voice article "Breakthroughs in stem cell-based treatment of
 heart disease" (Nov 24, 2020), with the three longest split in two. None got
@@ -1115,6 +1149,13 @@ beside it instead.
                         signal at 0.6, so it dragged the whole score down."
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
+
+**Stability across trials:** all three trials of all five criteria were
+identical, score for score, so there is no instability to diagnose.
+Signal one runs GPT-2 in eval mode with no sampling, and signal two is plain
+arithmetic on the text, so the same input always gives the same score. Any
+miss in this run is therefore a property of the pipeline, not bad luck in one
+trial.
 
 ---
 
