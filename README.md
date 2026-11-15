@@ -554,19 +554,550 @@ here.
 
 <!-- Your five criteria across three trials. `run_eval.py --label before`. -->
 
+Criteria 1, 2, 3 and 5 ran through `run_eval.py --label before`
+([results/run_2026-11-15_0722_before.md](results/run_2026-11-15_0722_before.md)).
+Criterion 4 can't be sent as a plain `/submit`, because an appeal needs the
+content_id from a real submission. So it runs from `check_appeals.py`, which
+submits the ten label-coverage texts, appeals each one, and reads the log back
+([results/appeals_2026-11-15_0713_before.md](results/appeals_2026-11-15_0713_before.md)).
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 | --------- | ------ | ----- | ----- | ----- | ------- |
-| 1.        |        |       |       |       |         |
-| 2.        |        |       |       |       |         |
-| 3.        |        |       |       |       |         |
-| 4.        |        |       |       |       |         |
-| 5.        |        |       |       |       |         |
+| 1. My own writing labelled AI | ≤ 2 of 10 | 0/10 | 0/10 | 0/10 | MET |
+| 2. Missing/empty/whitespace text refused with no label | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 3. All three labels reachable in 10 cases | 3 of 3 | 3/3 | 3/3 | 3/3 | MET |
+| 4. Appeals recorded / classification changed | 10/10 recorded, ≤ 3 changed | 10/10, 0 changed | 10/10, 0 changed | 10/10, 0 changed | MET |
+| 5. `unsure` on non-empty text | ≤ 3 of 10 | 2/10 | 2/10 | 2/10 | MET |
 
-**Real output from one trial**, pasted as text, naming the file and function
-that produced it:
+**All three trials were identical** for every criterion, down to the fourth
+decimal of every score. Neither signal has any randomness in it, so this is
+what a stable pipeline should look like.
+
+**Criterion 1 is MET, but only just.** My ten pieces are the seven paragraphs
+of my College Voice article "Breakthroughs in stem cell-based treatment of
+heart disease" (Nov 24, 2020), with the three longest split in two. None got
+the `ai` label, but none got `human` either: all ten landed in `unsure`. Piece
+1 scored model 0.90 and style 0.53, which would average 0.72 and be labelled
+`ai`. The only thing that saved it was the disagreement cap: the signals were
+more than 0.35 apart, so the score was capped at 0.64, one hundredth under my
+0.65 AI threshold. Careful, factual science writing looks predictable to
+signal one, the same weakness FP02–FP05 exposed in the attack run.
+
+**Criterion 4:** "changed" means the original decision's guess or label in
+the log differs from what `/submit` returned. It is 0 every time because an
+appeal never rewrites the decision. It appends an `under_review` entry
+beside it instead.
+
+**Real output from one trial (trial 1)**, pasted as text.
+
+*Criterion 1: my own writing.* Produced by `run_eval.py::main`, calling
+`app.py::submit`:
 
 ```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.28,
+    "model_score": 0.9018,
+    "style_score": 0.5334,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "In the United States alone, one person dies every 36 seconds from card"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.0956,
+    "model_score": 0.8423,
+    "style_score": 0.2533,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Therefore, scientists tend to refer to other modes of treatment which "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.0574,
+    "model_score": 0.5715,
+    "style_score": 0.3711,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Regenerative medicine has been a topic of excitement among researchers"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.1306,
+    "model_score": 0.6305,
+    "style_score": 0.5,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "More recently, Yoshiki Sawa, a professor of cardiovascular surgery at "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.2028,
+    "model_score": 0.6803,
+    "style_score": 0.5224,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "The researchers first extracted adult stem cells from the patient’s bl"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.2016,
+    "model_score": 0.5175,
+    "style_score": 0.2809,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "The United States is also home to major breakthroughs in regenerative "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.1248,
+    "model_score": 0.5028,
+    "style_score": 0.3724,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "This heart does not necessarily have to be a human heart. She often fi"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.1568,
+    "model_score": 0.5804,
+    "style_score": 0.2628,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "These groundbreaking results in regenerative medicine altogether have "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.0808,
+    "model_score": 0.5808,
+    "style_score": 0.5,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Stem cell research in tissue engineering could save millions of lives "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.1614,
+    "model_score": 0.4675,
+    "style_score": 0.3711,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "She also maintains that tissue engineering efforts remain poorly funde"
+  }
+]
+```
 
+*Criterion 2: bad input.* Produced by `run_eval.py::main`, calling
+`app.py::submit`:
+
+```json
+[
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "(empty text)"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": " "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "     "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "\n\n"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "\t"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": " \n\t \r\n "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"creator_id\": \"eval_bad_07\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": null, \"creator_id\": \"eval_bad_08\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": \"\", \"creator_id\": \"eval_bad_09\", \"note\": \"extra field\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "  "
+  }
+]
+```
+
+*Criterion 3: label coverage.* Produced by `run_eval.py::main`, calling
+`app.py::submit`:
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.3814,
+    "model_score": 0.8608,
+    "style_score": 0.5207,
+    "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+    "sent": "Artificial intelligence is transforming the way we live and work. It o"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.4396,
+    "model_score": 0.8303,
+    "style_score": 0.6093,
+    "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+    "sent": "Time management is an essential skill for students. It helps them bala"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.28,
+    "model_score": 0.9514,
+    "style_score": 0.4565,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Climate change is one of the most pressing issues facing the world tod"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.5026,
+    "model_score": 0.3881,
+    "style_score": 0.1094,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "Ok so the bus never came. Twenty minutes in the rain, phone at 3%, and"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.5928,
+    "model_score": 0.2707,
+    "style_score": 0.1366,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "My grandmother kept her buttons in a Danish cookie tin, the blue one, "
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.7454,
+    "model_score": 0.2089,
+    "style_score": 0.0456,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "Fixed the sink! Well, sort of. The drip's gone but now there's a weird"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.3194,
+    "model_score": 0.4146,
+    "style_score": 0.2659,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "The meeting covered the budget for next quarter. Marketing wants more "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.1188,
+    "model_score": 0.6854,
+    "style_score": 0.4333,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Reading before bed helps me relax after a long day. I usually pick som"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.1474,
+    "model_score": 0.6121,
+    "style_score": 0.5353,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Learning a new language takes patience and consistent practice. Many p"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.5,
+    "model_score": 0.2717,
+    "style_score": 0.2284,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "We adopted a cat in March. She hid under the bed for nine days. Now sh"
+  }
+]
+```
+
+*Criterion 4: appeals.* Produced by `check_appeals.py::one_trial`, calling
+`app.py::submit`, `app.py::appeal` and `app.py::get_log`:
+
+```json
+[
+  {
+    "content_id": "2bbd6ea4-a18f-4ccb-adf8-fed249b2964d",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "2bbd6ea4-a18f-4ccb-adf8-fed249b2964d",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "48ee882e-90f2-443a-8f6e-ec229c5f2d99",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "48ee882e-90f2-443a-8f6e-ec229c5f2d99",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "a1e87eac-f401-4e5c-8d05-6946a3eab8fe",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "a1e87eac-f401-4e5c-8d05-6946a3eab8fe",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "1d5ab93a-0073-4851-b082-09ac5313fafc",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "1d5ab93a-0073-4851-b082-09ac5313fafc",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "73ad3aae-a231-4c53-8ff4-8bdb5cc0f5bc",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "73ad3aae-a231-4c53-8ff4-8bdb5cc0f5bc",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "55e6bf2a-2e36-4ebe-90f2-932278b38fff",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "55e6bf2a-2e36-4ebe-90f2-932278b38fff",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "bed123c6-993a-45ec-9196-3b171aea6168",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "bed123c6-993a-45ec-9196-3b171aea6168",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "bcfa4b32-5471-4d3a-bffb-6ca9173ce2f0",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "bcfa4b32-5471-4d3a-bffb-6ca9173ce2f0",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "4906699f-4c63-4035-8124-49b6197c1b09",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "4906699f-4c63-4035-8124-49b6197c1b09",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  },
+  {
+    "content_id": "2b52eae8-b96d-4218-9bbe-bf9c49d7085d",
+    "appeal_status_code": 200,
+    "appeal_response": {
+      "content_id": "2b52eae8-b96d-4218-9bbe-bf9c49d7085d",
+      "message": "Appeal recorded.",
+      "status": "under_review"
+    },
+    "recorded": true,
+    "changed": false
+  }
+]
+```
+
+*Criterion 5: unsure rate.* Produced by `run_eval.py::main`, calling
+`app.py::submit`:
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.28,
+    "model_score": 0.8766,
+    "style_score": 0.4405,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Regular exercise provides numerous benefits for both physical and ment"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.449,
+    "model_score": 0.863,
+    "style_score": 0.586,
+    "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+    "sent": "I started running last spring because my doctor suggested it. At first"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.3428,
+    "model_score": 0.7824,
+    "style_score": 0.5604,
+    "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+    "sent": "Our team visited the museum on Saturday. The exhibits were interesting"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.5482,
+    "model_score": 0.3343,
+    "style_score": 0.1175,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "honestly the best pizza in this town is the place by the laundromat, n"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.3814,
+    "model_score": 0.8608,
+    "style_score": 0.5207,
+    "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+    "sent": "Artificial intelligence is transforming the way we live and work. It o"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.4396,
+    "model_score": 0.8303,
+    "style_score": 0.6093,
+    "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.",
+    "sent": "Time management is an essential skill for students. It helps them bala"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.5026,
+    "model_score": 0.3881,
+    "style_score": 0.1094,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "Ok so the bus never came. Twenty minutes in the rain, phone at 3%, and"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.5928,
+    "model_score": 0.2707,
+    "style_score": 0.1366,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "My grandmother kept her buttons in a Danish cookie tin, the blue one, "
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.3194,
+    "model_score": 0.4146,
+    "style_score": 0.2659,
+    "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+    "sent": "The meeting covered the budget for next quarter. Marketing wants more "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.1188,
+    "model_score": 0.6854,
+    "style_score": 0.4333,
+    "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+    "sent": "Reading before bed helps me relax after a long day. I usually pick som"
+  }
+]
 ```
 
 **Diagnoses**
