@@ -17,6 +17,7 @@ the audit log back and checks two things per appeal:
 
 import datetime as dt
 import json
+import sys
 
 import requests
 
@@ -63,7 +64,7 @@ def main():
         lines += [f"**Trial {n}:** recorded {rec}/10, changed {chg}/10", "",
                   "```json", json.dumps(res, indent=2), "```", ""]
     config.RESULTS_DIR.mkdir(exist_ok=True)
-    path = config.RESULTS_DIR / f"appeals_{dt.datetime.now():%Y-%m-%d_%H%M}_before.md"
+    path = config.RESULTS_DIR / f"appeals_{dt.datetime.now():%Y-%m-%d_%H%M}_{(sys.argv[1] if len(sys.argv) > 1 else "before")}.md"
     path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Wrote {path.relative_to(config.ROOT)}")
 
