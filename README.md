@@ -420,6 +420,33 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
   up an accidental change in `config.py` (rate limiting switched on by
   default). That's a unit 8 setting, so I kept it out of my unit 7 commits.
 
+**Moment 3 (unit 8): my own writing for criterion 1**
+
+- _What I asked for:_ I asked Claude to fill the criterion 1 scenarios and
+  run my five criteria.
+- _What came back:_ It refused to write the "human" samples itself, because
+  `scenarios.py` says they have to be my own writing, and it stopped to ask
+  for them. I pointed it at my College Voice article. Its web-fetch tool
+  only returned a summary, so it pulled the verbatim text from the Wayback
+  Machine instead.
+- _What I changed:_ I checked that the byline was mine. The article has seven
+  paragraphs, so the three longest were split at a sentence to make ten, and
+  I said so in the README. The texts for criteria 3 and 5 were written by
+  Claude and pre-scored before the run. I called that out in my diagnosis as
+  the reason criterion 5 was too easy, rather than counting it as a clean
+  pass.
+
+**Moment 4 (unit 8): the improvement**
+
+- _What I asked for:_ I asked for one fix, done quickly.
+- _What came back:_ Claude raised `AI_THRESHOLD` from 0.65 to 0.75 and re-ran
+  both test sets. False positives went from 4 to 0, but criteria 3 and 5
+  went from MET to MISSED.
+- _What I changed:_ I kept the change and reported both misses, instead of
+  tuning the threshold until the criteria passed again. A first draft of the
+  run log only pasted trial 1; the checkpoint asked for all three trials, so
+  I added them.
+
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---
@@ -1373,10 +1400,58 @@ that needs a better signal one.
 <!-- For each attack still getting through and each criterion still missed:
      what you'd do, and why you stopped. -->
 
+After the threshold change, 17 of 56 attacks still get through and two
+criteria are missed.
+
+- **Evasion: 9 of 10 still get through (EV01–EV09).**
+  - *What I'd do:* replace signal one with something that measures more than
+    predictability, for example a stronger model or a comparison against
+    known AI outputs. Signal two should also stop falling back to a neutral
+    0.5 when a text is one long "sentence" (EV07).
+  - *Why I stopped:* the lab allowed one change, and a threshold can't fix
+    this. Typos and rare words push signal one *down*, so raising the AI line
+    only makes these easier.
+- **PI02 (fake `SYSTEM:` header) is still labelled `human`.**
+  - *What I'd do:* detect instruction-like lines (`SYSTEM:`, `key=value`,
+    "ignore previous") and either strip them before scoring or route the
+    submission to `unsure`.
+  - *Why I stopped:* one change, and it's one attack. The pattern behind it
+    (odd formatting raises perplexity) belongs with the signal one fix.
+- **MF02 and RQ07 still return 500 and leave no log entry.**
+  - *What I'd do:* in `app.py::submit`, refuse a body that isn't a JSON
+    object, refuse text under about 10 words, and wrap scoring in
+    `try/except` so any failure becomes a logged 400.
+  - *Why I stopped:* this is the easiest remaining fix and the next one I'd
+    make. I spent my one change on false positives instead, because a wrong
+    accusation hurts a real writer and a 500 hurts nobody's reputation.
+- **MF03–MF07 (control characters, punctuation, one long word, emoji,
+  right-to-left script) still get scored and labelled.** The same input check
+  (minimum count of real words) would refuse all five with a logged 400. It
+  stopped for the same reason as above.
+- **Criterion 3 (all three labels reachable) is MISSED after the change, in
+  all three trials.**
+  - *What I'd do:* I wouldn't move the threshold back, because that brings
+    the four false accusations back. The real fix is a signal that scores
+    typical AI prose above 0.75 and formal human prose below it; right now
+    both land at 0.66–0.74.
+  - *Why I stopped:* that is a signal one redesign, not a tuning change.
+- **Criterion 5 (`unsure` at most 3 of 10) is MISSED after the change (6/10
+  in all three trials).** It has the same cause and the same fix as criterion
+  3: the wider band catches AI prose as well as human prose. My own writing
+  was already 10/10 `unsure` before the change, so this criterion was weaker
+  than it looked even when it passed.
+
 **The trade I'd make if this ran for real:**
 
 <!-- Two sentences. Fewer wrong accusations means more AI text getting through.
      Say which way you'd go and WHO PAYS FOR IT. -->
+
+I'd keep the 0.75 threshold and accept that most AI text gets `unsure`
+instead of `ai`. A wrong accusation lands on one real person, often a
+non-native or formal writer, with no way to prove their innocence. The cost
+of the other choice is spread across the site, its moderators and the honest
+writers whose work now sits next to undetected AI text, and I think they are
+better placed to carry it.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
