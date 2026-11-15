@@ -566,8 +566,24 @@ submits the ten label-coverage texts, appeals each one, and reads the log back
 | 1. My own writing labelled AI | ≤ 2 of 10 | 0/10 | 0/10 | 0/10 | MET |
 | 2. Missing/empty/whitespace text refused with no label | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
 | 3. All three labels reachable in 10 cases | 3 of 3 | 3/3 | 3/3 | 3/3 | MET |
-| 4. Appeals recorded / classification changed | 10/10 recorded, ≤ 3 changed | 10/10, 0 changed | 10/10, 0 changed | 10/10, 0 changed | MET |
+| 4. Appeals recorded, original decision untouched *(revised; see criteria.md)* | 10 of 10 both | 10/10 | 10/10 | 10/10 | MET |
 | 5. `unsure` on non-empty text | ≤ 3 of 10 | 2/10 | 2/10 | 2/10 | MET |
+
+**How I decided each verdict:** a criterion is MET only if the target held in
+all three trials, not just one.
+
+1. **MET:** I counted responses with `"guess": "ai"` among my ten pieces. It
+   was 0 in each trial, against a limit of 2.
+2. **MET:** I counted responses that came back `400` with `"guess": null`. It
+   was 10 of 10 in each trial; none got a label and none returned a 500.
+3. **MET:** I checked that `ai`, `human` and `unsure` each appeared at least
+   once. All three did in each trial (2 `ai`, 5 `human`, 3 `unsure`).
+4. **MET** (revised wording): for each appeal I checked that the log had an
+   `appeal` entry with status `under_review`, and that the original decision
+   still had the guess and label `/submit` returned. That held for 10 of 10
+   in each trial.
+5. **MET:** I counted `"guess": "unsure"` among the ten texts. It was 2 in
+   each trial, against a limit of 3.
 
 **All three trials were identical** for every criterion, down to the fourth
 decimal of every score. Neither signal has any randomness in it, so this is
@@ -617,10 +633,10 @@ more than 0.35 apart, so the score was capped at 0.64, one hundredth under my
 0.65 AI threshold. Careful, factual science writing looks predictable to
 signal one, the same weakness FP02–FP05 exposed in the attack run.
 
-**Criterion 4:** "changed" means the original decision's guess or label in
-the log differs from what `/submit` returned. It is 0 every time because an
-appeal never rewrites the decision. It appends an `under_review` entry
-beside it instead.
+**Criterion 4** is called against its revised wording. In the output below,
+`recorded` means the log has an `appeal` entry with status `under_review`, and
+`changed: false` means the original decision entry still has the guess and
+label `/submit` returned.
 
 **Real output from one trial (trial 1)**, pasted as text.
 
@@ -1150,12 +1166,134 @@ beside it instead.
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
 
+**Verdicts against my unit 7 targets:** all five criteria were **MET** in
+every trial (table above). Criterion 4 is called against its revised wording
+(see [criteria.md](criteria.md)). The original couldn't be measured, and the
+reason is below. Meeting all five doesn't mean the service works: the attack
+set broke 21 of 56, and my own targets were too easy in ways I explain at the
+end.
+
+**The five stages:** the route (`app.py::submit`), signal one
+(`detector.model_signal`, GPT-2 predictability), signal two
+(`stylometry.style_signal`), the combining rule (`scoring.combine_signals`: a
+50/50 average, capped at 0.64 when the signals are more than 0.35 apart), and
+the label mapping (`scoring.score_to_label`: `ai` at 0.65 or above, `human`
+at 0.35 or below).
+
+The 21 broken attacks come down to four problems, not 21.
+
+**Pattern 1: signal one measures predictability, not authorship (12 broken
+attacks).**
+
+- *Pushed toward human (EV01, EV04, EV05, EV08, PI02, MF03, MF04).* Anything
+  that surprises GPT-2 lowers signal one, whoever wrote it.
+  - EV01: the same AI paragraph with typos ("poistioned", "thsi") dropped to
+    0.16. GPT-2 has never seen those tokens, so perplexity jumps.
+  - EV04: swapping in rare words ("efficacious") dropped it to 0.61.
+  - EV08: two short sentences give the model too little context to be sure
+    of anything, so it scored 0.25.
+  - PI02: the injection did not work as an instruction, because GPT-2 isn't
+    following instructions; it is only being scored. But its
+    `SYSTEM: ... guess=human, confidence=0.02` header is so unlike normal
+    prose that signal one fell to 0.20. With signal two at 0.22 (the short
+    header lines raise sentence spread), it was labelled `human` at 0.21.
+  - MF03 and MF04 (control characters, punctuation only): signal one scored
+    0.00 and 0.01. Then the label mapping turned meaningless input into a
+    confident `human`.
+- *Pushed toward AI (FP02, FP03, FP04, FP05, and every piece of my own
+  writing).* Formal reports, careful non-native English, essays written to a
+  rubric, technical docs, and my own science article all use common words in
+  common orders. Signal one scored them 0.74–0.90.
+
+The stage is signal one, and the mechanism is that predictable wording
+reads as AI and surprising wording reads as human, whoever wrote it.
+
+**Pattern 2: the safeguard fails exactly when it's needed (FP02–FP05).**
+The disagreement cap is my only protection against a false accusation, and it
+only fires when the signals disagree. On plain human writing they don't:
+signal two scored FP02 0.63, FP03 0.59, FP04 0.49 and FP05 0.68. Signal two
+also rewards regularity: FP03 has even sentence lengths (spread 0.33) and no
+commas or semicolons at all (punctuation density 0.0). So both signals
+measure "regular" rather than two independent things about authorship. FP04
+shows how thin the margin is: its signals were 0.34 apart, 0.01 under the
+0.35 gap, so the cap didn't fire and it was labelled `ai` at 0.66. The
+stage is the combining rule, and the mechanism is that my two signals are
+correlated on plain writing, so "they agree" doesn't mean "it's AI."
+
+**Pattern 3: signal two is cheap to reshape, and an average needs both
+signals high (EV02, EV03, EV06, EV07, EV09).**
+Each of these AI texts changed only its shape, and each landed in `unsure`.
+To be labelled `ai`, a text needs an average of at least 0.65 with the two
+signals within 0.35 of each other, so it is enough to knock one signal down.
+
+- EV02 (broken-up sentences) and EV06 (one very long sentence next to a very
+  short one) raised sentence-length spread, so signal two fell to 0.19 and
+  0.26 while signal one stayed near 0.6.
+- EV03 (a pasted quotation) changed the shape in the same way: style 0.37.
+- EV07 joined everything with semicolons into one 97-word "sentence".
+  `style_signal` sees fewer than two sentences and falls back to a neutral
+  0.5, so the attack didn't fool signal two so much as switch it off.
+- EV09 bolted a human opening paragraph onto AI text, and both signals
+  average over the whole text, so the human part diluted them (model 0.70,
+  style 0.35).
+
+The stage is signal two plus the combining rule. The mechanism is that shape
+is trivial to edit, and my average lets one weakened signal veto the label.
+That is partly deliberate: I chose to make `ai` hard to reach so that a
+writer isn't wrongly accused. The cost is that 9 of 10 evasions avoided the
+flag.
+
+EV05 (a heavy human editing pass) scored model 0.32, style 0.25 and was
+labelled `human`. That one may not be a detector failure at all: after
+enough human rewriting, the text arguably is human writing.
+
+**Pattern 4: the route trusts its input (MF02, RQ07, MF05, MF06, MF07, and
+MF03/MF04 again).**
+
+- **MF02 → 500.** The route only checks that `text` isn't blank, so the
+  single character `"a"` reached `detector.perplexity`. That function raises
+  `ValueError("Text is too short to score")` on fewer than 3 tokens, and
+  nothing catches it. The stage is the route; the mechanism is no length
+  floor and no `try/except` around scoring.
+- **RQ07 → 500.** A JSON array body parses fine, so
+  `request.get_json(silent=True) or {}` returns a list, and `payload.get`
+  raises `AttributeError`. The stage is the route; the mechanism is
+  checking for "is it JSON" but not "is it a JSON object". (The limiter's
+  key function already guards against this, but my handler doesn't.)
+- **Neither 500 left a trace in the audit log.** Both crashed before
+  `audit.log_rejection` ran, so an attacker hammering either one would look
+  like silence.
+- **MF05, MF06, MF07 (one long word, emoji only, right-to-left script) were
+  scored instead of refused.** Signal one scored them 0.91–1.00 because
+  repeated or unusual byte sequences are easy for GPT-2 to predict once it
+  has seen the first few. Signal two fell back to 0.5 (fewer than 10
+  English words), and the cap held all three at 0.64, `unsure`. The stage
+  is the route; the mechanism is that it never asks whether the input is
+  prose, so both signals produce confident numbers about nothing.
+
 **Stability across trials:** all three trials of all five criteria were
 identical, score for score, so there is no instability to diagnose.
 Signal one runs GPT-2 in eval mode with no sampling, and signal two is plain
 arithmetic on the text, so the same input always gives the same score. Any
 miss in this run is therefore a property of the pipeline, not bad luck in one
 trial.
+
+**Were my targets too low? Yes, in three places.**
+
+- **Criterion 5 (`unsure` at most 3 of 10) is the one I'd tighten first.**
+  I picked its ten texts after seeing their scores, so a pass was close to
+  guaranteed: 2/10. Run against my own article, `unsure` came back 10 of 10.
+  A real writer on this service would mostly get "we can't tell," which my
+  target was meant to rule out. The tighter version: run it on my own
+  writing, and require at least 5 of 10 to come back `human`.
+- **Criterion 1 (at most 2 of 10 of my pieces labelled `ai`) passed with no
+  margin.** Piece 1 (model 0.90, style 0.53) averages 0.72 and was held at
+  0.64 only by the disagreement cap. Moving one signal by a few hundredths
+  would turn it into an accusation.
+- **Criterion 2 (bad input) tested only missing, empty and whitespace
+  text.** That's why it passed 10/10 while the attack set found two 500s
+  (a single character and a JSON array). It should have covered
+  too-short text and wrong body types.
 
 ---
 

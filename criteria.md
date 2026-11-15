@@ -84,6 +84,19 @@ Of 10 appeals of classifications judged correct, no more than 3 may change the c
 
 Because AI classification is not proof of authorship, I want to allow some valid appeals to change the result. However, if more than 3 correct classifications are overturned, the classifier may be unreliable. Recording every appeal also ensures that the appeal process works properly.
 
+> **Revised in unit 8:** Of 10 appeals, all 10 return 200, all 10 appear in
+> the audit log with status `under_review`, and in all 10 the original
+> decision entry still carries the guess and label it was given.
+>
+> **Why revised:** the original mixes up "status" and "classification" and
+> can't be measured either way. Every appeal changes the item's *status* to
+> `under_review`, by design, so "no more than 3 change status" fails on every
+> appeal. No appeal ever changes the *classification*, because there is no
+> automatic re-check, so "no more than 3 change the classification" can't
+> fail at all. Neither reading can tell a working appeal path from a broken
+> one. The revision checks what the appeal path actually promises: the appeal
+> is recorded, and the original decision is kept, not overwritten.
+
 ---
 
 ## 5.
