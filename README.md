@@ -467,16 +467,86 @@ refuses (400 for missing `text` or `creator_id`) are logged the same way.
 <!-- Every attack with its outcome and a held-or-broke mark.
      `run_attacks.py --label before` produces the table. -->
 
+Full table with every attack and its verdict:
+[results/attack_run_2026-11-15_0652_before.md](results/attack_run_2026-11-15_0652_before.md)
+
+**How I marked them:** an attack BROKE if it got what its `targets` column was
+going for. Evasion: AI text that did not get the `ai` label (an `unsure` counts
+as broke, because it avoided the flag). False positive: human text that got the
+`ai` label. Prompt injection: the text got the label it asked for, or changed
+the label or log. Malformed: a 500, or junk that got a label instead of a
+refusal. Flood: any request past my limit that was not refused with a 429.
+
+| Family | Attacks | Held | Broke |
+|---|---|---|---|
+| `evasion` | 10 | 1 | 9 |
+| `false_positive` | 8 | 4 | 4 |
+| `prompt_injection` | 6 | 5 | 1 |
+| `malformed` | 20 | 13 | 7 |
+| `flood_same_creator` | 12 | 12 | 0 |
+| **Total** | **56** | **35** | **21** |
+
+What broke:
+
+- **Evasion (9/10):** only EV10 (repeated stanza structure) got the `ai` label.
+  Typos (EV01) and a heavy human editing pass (EV05) were both labelled
+  `human`; the other seven landed in `unsure`.
+- **False positives (4/8):** FP02 (formal report), FP03 (non-native English
+  speaker), FP04 (student essay to a rubric) and FP05 (technical docs) were all
+  labelled `ai`. FP06 and FP07 held only because of the disagreement cap; both
+  sit at 0.64, just under my 0.65 AI threshold.
+- **Prompt injection (1/6):** PI02, the fake `SYSTEM:` message, came back
+  `human` at 0.21. The text cannot instruct my detector (it is not a chat model),
+  so this is a scoring miss rather than a real injection, but the attacker still
+  got the label they asked for. PI04 (HTML in the label) and PI05 (fake JSON in
+  the log) held: the label is fixed template text, and `json.dumps` escapes
+  the quotes.
+- **Malformed (7/20):** two 500s. MF02 (a single character) makes
+  `detector.model_signal` raise "Text is too short to score", and RQ07 (a JSON
+  array body) crashes `payload.get` in `app.py::submit`. **Neither 500 left
+  anything in the audit log.** Five junk inputs (control characters,
+  punctuation only, one long word, emoji, right-to-left script) were scored and
+  labelled instead of refused. MF03 and MF04 came back `human`.
+- **Rate limiting:** FL01 got 5 × 200 then 7 × 429, and every 429 was logged.
+  RQ10 and RQ11 also came back 429: they have no usable creator_id, so they
+  count against my address, which earlier malformed rows had already used up.
+  They never reached my route.
+
 **Ten audit log entries from the run**
 
 <!-- Choose entries that show the interesting failures, not the ten easiest. -->
 
-```json
+In order: FP03, FP05, FP04 (false positives), EV01, EV05 (evasion labelled
+human), PI02 (injection got its label), MF03, MF04 (junk labelled human), MF08
+(60,000 characters of human text labelled `ai`), a 429 from the flood rows, a
+429 from RQ10/RQ11 counted against my address, and the 400 for whitespace-only
+text.
 
+```json
+{"timestamp": "2026-11-15T04:52:01+00:00", "content_id": "6ccc90b2-edc5-47f9-9d97-caf22a69e8e8", "creator_id": "attacker_FP03", "guess": "ai", "model_score": 0.8051, "style_score": 0.5894, "combined_score": 0.6973, "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.", "status": "decided"}
+{"timestamp": "2026-11-15T04:52:01+00:00", "content_id": "b04f8f2f-7e54-40af-8d83-bc84a057aef3", "creator_id": "attacker_FP05", "guess": "ai", "model_score": 0.8005, "style_score": 0.6762, "combined_score": 0.7384, "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.", "status": "decided"}
+{"timestamp": "2026-11-15T04:52:01+00:00", "content_id": "d012387b-5ac3-475e-bfbe-d9cf579388b8", "creator_id": "attacker_FP04", "guess": "ai", "model_score": 0.8329, "style_score": 0.488, "combined_score": 0.6604, "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.", "status": "decided"}
+{"timestamp": "2026-11-15T04:51:58+00:00", "content_id": "0e80edd4-039c-4eea-a118-f06bb7aa2c92", "creator_id": "attacker_EV01", "guess": "human", "model_score": 0.1635, "style_score": 0.5174, "combined_score": 0.3404, "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.", "status": "decided"}
+{"timestamp": "2026-11-15T04:51:59+00:00", "content_id": "5562dc76-eac6-4cb8-8f85-84336bf96f46", "creator_id": "attacker_EV05", "guess": "human", "model_score": 0.3212, "style_score": 0.2485, "combined_score": 0.2848, "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.", "status": "decided"}
+{"timestamp": "2026-11-15T04:52:02+00:00", "content_id": "d2b5bce6-65b7-4729-a335-0a6fac6a9683", "creator_id": "attacker_PI02", "guess": "human", "model_score": 0.2044, "style_score": 0.2241, "combined_score": 0.2142, "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.", "status": "decided"}
+{"timestamp": "2026-11-15T04:52:03+00:00", "content_id": "788daf6f-8da5-4d07-bfd4-04a2e6fb3f71", "creator_id": "attacker_MF03", "guess": "human", "model_score": 0.0, "style_score": 0.5, "combined_score": 0.25, "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.", "status": "decided"}
+{"timestamp": "2026-11-15T04:52:03+00:00", "content_id": "12c8db1b-c614-4445-8dcd-4c357eb6bee7", "creator_id": "attacker_MF04", "guess": "human", "model_score": 0.0112, "style_score": 0.5, "combined_score": 0.2556, "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.", "status": "decided"}
+{"timestamp": "2026-11-15T04:52:05+00:00", "content_id": "8b6b9127-66f3-47f0-b72b-7193e5396e7c", "creator_id": "attacker_MF08", "guess": "ai", "model_score": 0.9876, "style_score": 0.7332, "combined_score": 0.8604, "label": "We think this was likely written with help from AI. Our checks found patterns common in AI-generated text, such as very predictable wording and evenly sized sentences. These checks can be wrong. If you wrote this yourself, you can appeal, and a person will review it.", "status": "decided"}
+{"timestamp": "2026-11-15T04:52:06+00:00", "creator_id": "attacker_flood", "event": "rejected", "status": "rejected", "reason": "rate_limited", "limit": "5 per 1 minute"}
+{"timestamp": "2026-11-15T04:52:05+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "rate_limited", "limit": "5 per 1 minute"}
+{"timestamp": "2026-11-15T04:52:02+00:00", "creator_id": "attacker_MF01", "event": "rejected", "status": "rejected", "reason": "missing_text"}
 ```
 
 **The single worst outcome** — the one I'd least want to explain to a writer
 whose work got caught by it:
+
+**FP03**: a non-native English speaker writing carefully about their first
+month in a new country, labelled `ai` (model 0.81, style 0.59, combined 0.70).
+The detector punishes exactly what careful second-language writing looks like:
+simple, predictable words and regular sentences. The person most likely to be
+hurt by an accusation is the one my service is most likely to accuse, and both
+signals agreed, so the disagreement cap that saved FP06 and FP07 did nothing
+here.
 
 ---
 
