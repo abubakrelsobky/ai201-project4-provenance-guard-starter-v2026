@@ -1299,18 +1299,72 @@ trial.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** one setting. `AI_THRESHOLD` in `config.py` went from
+**0.65 to 0.75**, which widens the unsure band from 0.35–0.65 to 0.35–0.75.
+The disagreement cap follows it automatically, because it is
+`AI_THRESHOLD - 0.01`, so it moved from 0.64 to 0.74. Nothing else changed:
+the signals, weights, route and label text are all the same.
 
-**Which diagnosis pointed at it:**
+**Which diagnosis pointed at it:** Pattern 2 and the worst outcome, FP03. The
+four human texts labelled `ai` (FP02–FP05) scored 0.66, 0.68, 0.70 and 0.74,
+all just over the old threshold, and the disagreement cap couldn't save them
+because both signals agreed. Moving the line above them is the most direct
+fix for the mistake that costs a real writer the most.
 
 ### Attack Run — After
 
-<!-- Same format. `run_attacks.py --label after` -->
+Full table: [results\attack_run_2026-11-15_0740_after.md](results\attack_run_2026-11-15_0740_after.md)
 
-**Did it help, and how do I know:**
+| Family | Attacks | Held before | Held after | Broke before | Broke after |
+|---|---|---|---|---|---|
+| `evasion` | 10 | 1 | 1 | 9 | 9 |
+| `false_positive` | 8 | 4 | **8** | 4 | **0** |
+| `prompt_injection` | 6 | 5 | 5 | 1 | 1 |
+| `malformed` | 20 | 13 | 13 | 7 | 7 |
+| `flood_same_creator` | 12 | 12 | 12 | 0 | 0 |
+| **Total** | **56** | **35** | **39** | **21** | **17** |
 
-<!-- Widening the unsure band usually fixes one problem and creates another.
-     Reporting that trade honestly is worth full credit. -->
+Only four rows changed: FP02, FP03, FP04 and FP05 went from `ai` to `unsure`.
+EV10 is still caught at 0.88, and MF08 is still `ai` at 0.86.
+
+**Criteria, before and after** (`run_eval.py --label after`, three trials,
+[results/run_2026-11-15_0741_after.md](results/run_2026-11-15_0741_after.md);
+appeals: [results/appeals_2026-11-15_0741_after.md](results/appeals_2026-11-15_0741_after.md)):
+
+| Criterion | Target | Before (runs 1/2/3) | After (runs 1/2/3) | Before | After |
+|---|---|---|---|---|---|
+| 1. My own writing labelled AI | ≤ 2 of 10 | 0/10 · 0/10 · 0/10 | 0/10 · 0/10 · 0/10 | MET | MET |
+| 2. Bad input refused, no label | 10 of 10 | 10/10 · 10/10 · 10/10 | 10/10 · 10/10 · 10/10 | MET | MET |
+| 3. All three labels reachable | 3 of 3 | 3/3 · 3/3 · 3/3 | 2/3 · 2/3 · 2/3 | MET | **MISSED** |
+| 4. Appeals recorded, decision untouched | 10 of 10 | 10/10 · 10/10 · 10/10 | 10/10 · 10/10 · 10/10 | MET | MET |
+| 5. `unsure` on non-empty text | ≤ 3 of 10 | 2/10 · 2/10 · 2/10 | 6/10 · 6/10 · 6/10 | MET | **MISSED** |
+
+All three trials were again identical.
+
+```
+label coverage  (criterion 3), after
+  trial 1: unsure, unsure, unsure, human, human, human, human, unsure, unsure, human
+  trial 2: unsure, unsure, unsure, human, human, human, human, unsure, unsure, human
+  trial 3: unsure, unsure, unsure, human, human, human, human, unsure, unsure, human
+
+unsure rate  (criterion 5), after
+  trial 1: unsure, unsure, unsure, human, unsure, unsure, human, human, human, unsure
+  trial 2: unsure, unsure, unsure, human, unsure, unsure, human, human, human, unsure
+  trial 3: unsure, unsure, unsure, human, unsure, unsure, human, human, human, unsure
+```
+
+**Did it help, and how do I know:** It helped with the thing I aimed at and
+cost me two criteria. **No human text in the attack set is labelled `ai`
+any more (false positives 4 → 0).** But the two clearly-AI texts in my
+label-coverage set scored 0.69 and 0.72, which is now `unsure`, so `ai` was
+reached 0 times (criterion 3 MISSED), and `unsure` rose from 2 to 6 of 10
+(criterion 5 MISSED). Every one of the four AI texts in my criterion 5 set
+moved to `unsure` with them. The trade is the one the lab warned about: the
+line moved above typical AI prose as well as above formal human prose,
+because my signals score them about the same (0.66–0.74). Only text that
+looks extremely machine-like (EV10 at 0.88, the repeated MF08 at 0.86) still
+gets `ai`. Moving a threshold can't separate two groups that score the same;
+that needs a better signal one.
 
 ---
 
