@@ -1538,7 +1538,9 @@ from.
 - **I'm not wrapping scoring in a catch-all `try/except`.** It would turn
   every future bug into a quiet 400 instead of naming it. The gate's job is to
   stop bad input before it reaches the model, and I want an unexpected crash to
-  stay visible.
+  stay visible. *(Milestone 3 added a Flask error handler that logs a crash
+  and still answers **500**. That's instrumentation, not a catch-all: it
+  doesn't hide anything, it makes sure a crash leaves a record.)*
 - **I'm not changing rate limits, `/appeal`, or `/log`, and I'm not hosting it
   (Path A).**
 
@@ -1576,3 +1578,146 @@ and still has to be scored.
 
 The response contract for a valid submission hasn't changed. `/ping`,
 `/appeal`, `/log`, `/health` and rate limiting weren't touched.
+
+**Run Path**
+
+**Path B, local with logs.** The start command is `python app.py`, from the
+repo root with the venv active. The full steps from a clean clone, the
+environment (Python 3.13.17, exact versions in `requirements.lock.txt`, GPT-2
+at 526 MB on disk) and why it isn't hosted are in
+[RUNNING.md → Capstone run path](RUNNING.md#capstone-run-path--path-b-local-with-logs).
+The measured memory footprint below (973 MB) is the reason in numbers: the
+free tier is 512 MB.
+
+*Testing RUNNING.md on myself:* I cloned the repo from GitHub into an empty
+folder and followed the file exactly. **It failed the first time.** The
+plain `python -m venv .venv` picked up Python **3.14** from my PATH. The
+install went through, and then `test.py` failed with
+`[FAIL] Python version — Found 3.14.6`. RUNNING.md now builds the venv with
+`py -3.13` / `python3.13` and explains why (commit `b737cd5`). On a second
+fresh clone, `test.py` passed 9/0. `python app.py` started, `/ping`
+answered, and `measure_cost.py -n 3` logged three submissions, the first a
+6.9 s cold start. One thing that test couldn't check: GPT-2 was already in
+my shared Hugging Face cache, so the clone didn't really re-download the
+526 MB model.
+
+**Instrumentation**
+
+Every request to `/submit` writes exactly one JSON line to
+`logs/audit.jsonl`, whatever happens to it. The timer starts in a
+`before_request` hook registered before the rate limiter, so a 429 is timed
+too. Records are written by `app.py` through `audit.py`, never `print()`.
+
+| Field | On | What it records |
+|---|---|---|
+| `timestamp` | all | UTC, seconds |
+| `event` / `status` | all | `decided`, `rejected`, `error` (and `appeal` / `under_review` from `/appeal`) |
+| `route`, `http_status` | all | what was called and what it answered |
+| `creator_id` | all | who sent it (`unknown` if absent or not a string) |
+| `duration_ms` | all | wall-clock time from the request arriving to the record being written |
+| `cpu_ms` | all | process CPU time over the same span, summed across threads (Windows ticks are ~15.6 ms, so tiny requests read 0.0 or 15.6) |
+| `text_chars`, `readable_words`, `text_preview` | where there was text | the input: its size, how many words the gate counted, the first 60 characters |
+| `model_score`, `style_score`, `combined_score`, `guess`, `label`, `content_id` | decided | the output, as in units 7–8 |
+| `cold_start` | decided | `true` if this request loaded GPT-2, so cold and warm runs are never averaged together |
+| `model_ms`, `style_ms` | decided | time inside each signal |
+| `reason` (+ `body_type`, `text_type`, `limit`) | rejected | why it was refused: `body_not_object`, `missing_text`, `missing_creator_id`, `too_few_readable_words`, `rate_limited` |
+| `error_type`, `error_message` | error | the exception behind a 500 |
+
+*The session.* I started the service with `python app.py`. I sent three
+real texts, four bad requests, an appeal and a six-request flood from one
+creator, then ran `python measure_cost.py` (ten timed runs). I restarted it
+once to resend the emoji input (see the note below). That's all 25 records
+the session wrote, in order, straight from `logs/audit.jsonl` (lines
+495–519). Only `label` is cut to 40 characters here, for width. The full
+text is in the file.
+
+```jsonl
+{"timestamp": "2026-11-23T11:38:56+00:00", "content_id": "4a7dad2f-0f38-437a-84bd-cee7c5f2157c", "creator_id": "session-anna", "guess": "unsure", "model_score": 0.5083, "style_score": 0.3794, "combined_score": 0.4438, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 148, "readable_words": 32, "text_preview": "Honestly the bus was so late this morning that I just gave u", "cold_start": true, "model_ms": 5803.9, "style_ms": 0.8, "duration_ms": 5805.6, "cpu_ms": 5906.2}
+{"timestamp": "2026-11-23T11:38:56+00:00", "content_id": "69cc2e7f-cc91-497d-9b48-ce266c09c3e7", "creator_id": "session-ben", "guess": "unsure", "model_score": 0.8616, "style_score": 0.4402, "combined_score": 0.6509, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 249, "readable_words": 33, "text_preview": "Artificial intelligence has transformed many aspects of mode", "cold_start": false, "model_ms": 87.6, "style_ms": 0.2, "duration_ms": 88.6, "cpu_ms": 468.8}
+{"timestamp": "2026-11-23T11:38:57+00:00", "content_id": "20c5fe1b-9a75-4250-8d69-cb285e1e5ff5", "creator_id": "session-cara", "guess": "unsure", "model_score": 0.6814, "style_score": 0.5, "combined_score": 0.5907, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 167, "readable_words": 27, "text_preview": "The committee reviewed the proposal at its October meeting a", "cold_start": false, "model_ms": 70.9, "style_ms": 0.0, "duration_ms": 71.6, "cpu_ms": 468.8}
+{"timestamp": "2026-11-23T11:38:57+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "body_not_object", "route": "/submit", "http_status": 400, "body_type": "list", "duration_ms": 0.6, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:38:57+00:00", "creator_id": "session-dan", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 1, "text_chars": 1, "text_preview": "a", "duration_ms": 0.8, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:38:57+00:00", "creator_id": "session-dan", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 0, "text_chars": 20, "text_preview": "????????????????????", "duration_ms": 0.5, "cpu_ms": 15.6}
+{"timestamp": "2026-11-23T11:38:57+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "missing_creator_id", "route": "/submit", "http_status": 400, "text_chars": 60, "duration_ms": 0.6, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:38:57+00:00", "content_id": "4a7dad2f-0f38-437a-84bd-cee7c5f2157c", "creator_id": "session-anna", "event": "appeal", "status": "under_review", "reasoning": "I wrote this on my phone walking to class."}
+{"timestamp": "2026-11-23T11:38:57+00:00", "content_id": "69c28726-dc9e-49fb-becb-39e523d6ce90", "creator_id": "session-flood", "guess": "human", "model_score": 0.1748, "style_score": 0.5, "combined_score": 0.3374, "label": "We think this was probably written by a …", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 72, "readable_words": 15, "text_preview": "Quick note to say the printer on the second floor is out of ", "cold_start": false, "model_ms": 49.7, "style_ms": 0.0, "duration_ms": 50.3, "cpu_ms": 187.5}
+{"timestamp": "2026-11-23T11:38:57+00:00", "content_id": "95f42291-8ec4-4f95-b671-74a88580e42c", "creator_id": "session-flood", "guess": "human", "model_score": 0.1748, "style_score": 0.5, "combined_score": 0.3374, "label": "We think this was probably written by a …", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 72, "readable_words": 15, "text_preview": "Quick note to say the printer on the second floor is out of ", "cold_start": false, "model_ms": 54.7, "style_ms": 0.0, "duration_ms": 55.3, "cpu_ms": 421.9}
+{"timestamp": "2026-11-23T11:38:57+00:00", "content_id": "f243765d-968b-41c3-9729-03fba6df35eb", "creator_id": "session-flood", "guess": "human", "model_score": 0.1748, "style_score": 0.5, "combined_score": 0.3374, "label": "We think this was probably written by a …", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 72, "readable_words": 15, "text_preview": "Quick note to say the printer on the second floor is out of ", "cold_start": false, "model_ms": 59.9, "style_ms": 0.0, "duration_ms": 60.6, "cpu_ms": 484.4}
+{"timestamp": "2026-11-23T11:38:57+00:00", "content_id": "69352112-08b7-4a57-933c-3d27d43ba3c1", "creator_id": "session-flood", "guess": "human", "model_score": 0.1748, "style_score": 0.5, "combined_score": 0.3374, "label": "We think this was probably written by a …", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 72, "readable_words": 15, "text_preview": "Quick note to say the printer on the second floor is out of ", "cold_start": false, "model_ms": 61.8, "style_ms": 0.0, "duration_ms": 62.4, "cpu_ms": 359.4}
+{"timestamp": "2026-11-23T11:38:58+00:00", "content_id": "97517d82-8db7-4ef7-a5ff-20363dcf254c", "creator_id": "session-flood", "guess": "human", "model_score": 0.1748, "style_score": 0.5, "combined_score": 0.3374, "label": "We think this was probably written by a …", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 72, "readable_words": 15, "text_preview": "Quick note to say the printer on the second floor is out of ", "cold_start": false, "model_ms": 56.2, "style_ms": 0.0, "duration_ms": 56.9, "cpu_ms": 437.5}
+{"timestamp": "2026-11-23T11:38:58+00:00", "creator_id": "session-flood", "event": "rejected", "status": "rejected", "reason": "rate_limited", "limit": "5 per 1 minute", "route": "/submit", "http_status": 429, "duration_ms": 0.6, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:39:02+00:00", "content_id": "4b6789f7-a44e-4c62-b785-9130872c4383", "creator_id": "cost-20261123-133901-01", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 210.1, "style_ms": 0.2, "duration_ms": 211.4, "cpu_ms": 812.5}
+{"timestamp": "2026-11-23T11:39:02+00:00", "content_id": "719d4121-1310-4643-8a56-7da2965d6666", "creator_id": "cost-20261123-133901-02", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 217.9, "style_ms": 0.2, "duration_ms": 218.7, "cpu_ms": 1390.6}
+{"timestamp": "2026-11-23T11:39:02+00:00", "content_id": "d1c5beb6-fc99-4dd7-9a9a-fb1b211fc201", "creator_id": "cost-20261123-133901-03", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 222.9, "style_ms": 0.3, "duration_ms": 223.7, "cpu_ms": 1375.0}
+{"timestamp": "2026-11-23T11:39:02+00:00", "content_id": "dd4a1c8f-5b3a-4a9f-861c-e76126d99604", "creator_id": "cost-20261123-133901-04", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 189.3, "style_ms": 0.3, "duration_ms": 190.3, "cpu_ms": 1250.0}
+{"timestamp": "2026-11-23T11:39:03+00:00", "content_id": "0a8eb59f-bdc4-4030-b62b-2d9a851ed462", "creator_id": "cost-20261123-133901-05", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 241.5, "style_ms": 0.3, "duration_ms": 242.6, "cpu_ms": 1328.1}
+{"timestamp": "2026-11-23T11:39:03+00:00", "content_id": "d05eb3e4-7ba3-424b-9710-ada9dc683476", "creator_id": "cost-20261123-133901-06", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 207.6, "style_ms": 0.2, "duration_ms": 208.4, "cpu_ms": 1250.0}
+{"timestamp": "2026-11-23T11:39:03+00:00", "content_id": "0efcf8b9-2fe6-4bd1-b715-c9df3a0a66c9", "creator_id": "cost-20261123-133901-07", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 194.9, "style_ms": 0.2, "duration_ms": 195.8, "cpu_ms": 1296.9}
+{"timestamp": "2026-11-23T11:39:03+00:00", "content_id": "2553e748-334a-4375-9645-2560c62e4351", "creator_id": "cost-20261123-133901-08", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 204.2, "style_ms": 0.4, "duration_ms": 205.3, "cpu_ms": 1250.0}
+{"timestamp": "2026-11-23T11:39:04+00:00", "content_id": "998c28e3-1a65-48fd-97b8-44ad7b6db05f", "creator_id": "cost-20261123-133901-09", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 217.9, "style_ms": 0.3, "duration_ms": 219.4, "cpu_ms": 1312.5}
+{"timestamp": "2026-11-23T11:39:04+00:00", "content_id": "57e8b6b2-83b3-4c0c-891c-3d892a02edef", "creator_id": "cost-20261123-133901-10", "guess": "unsure", "model_score": 0.4219, "style_score": 0.422, "combined_score": 0.4219, "label": "We can't tell whether this was written b…", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 536, "readable_words": 99, "text_preview": "We got to the campsite about four, later than planned becaus", "cold_start": false, "model_ms": 194.3, "style_ms": 0.3, "duration_ms": 195.4, "cpu_ms": 1265.6}
+{"timestamp": "2026-11-23T11:39:30+00:00", "creator_id": "session-dan", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 0, "text_chars": 10, "text_preview": "🙂🙃😀😃😄😁😆😅😂🤣", "duration_ms": 0.6, "cpu_ms": 0.0}
+```
+
+*The failed runs in that extract:* five refusals and one rate-limit
+rejection, each with a reason and a duration:
+
+- `body_not_object`: the JSON array (RQ07). This used to be a 500 with no record.
+- `too_few_readable_words` ×3: one character (MF02), a run of `?`, and
+  real emoji.
+- `missing_creator_id`
+- `rate_limited` (429)
+
+**Note on the `????????????????????` record (line 500).** It was meant to
+be the emoji-only input. Git Bash on Windows converted the emoji to `?`
+before curl sent them, so the service received 20 question marks. It
+refused them correctly, but that request didn't test emoji. I resent real
+emoji from a UTF-8 file (`curl --data-binary @emoji.json`), which is the
+last record (line 519). Both are kept because the log is append-only.
+
+**The 500 path.** Nothing in the session crashed, so there's no `error`
+record above. I tested that path separately with the Flask test client. I
+replaced `detector.model_signal` with a function that raises, and posted
+once. The service answered 500 and wrote this record. It wasn't kept in the
+committed log because it was a deliberate fault, not a run:
+
+```json
+{"timestamp": "2026-11-23T11:32:27+00:00", "creator_id": "fault", "event": "error", "status": "error", "reason": "server_error", "route": "/submit", "http_status": 500, "error_type": "ZeroDivisionError", "error_message": "division by zero", "duration_ms": 0.7, "cpu_ms": 0.0}
+```
+
+**What It Costs**
+
+There's no API bill. Both signals run on my laptop, so the real cost of a
+run is compute: CPU time, wall-clock time and memory.
+
+*Method:* with the service already warm, I ran `python measure_cost.py`.
+It sends the same ~100-word paragraph (536 characters) ten times, one at a
+time, each under its own `creator_id` so the rate limit doesn't interfere.
+Then it reads those ten records back from `logs/audit.jsonl` and averages
+the fields the service logged. The timing comes from the service's own
+records, not from the client. Output:
+
+```
+Text: 536 characters. Warm runs: 10. Cold runs: 0.
+
+per warm run        mean       min       max
+duration_ms        211.1     190.3     242.6
+cpu_ms            1253.1     812.5    1390.6
+model_ms           210.1     189.3     241.5
+style_ms             0.3       0.2       0.4
+```
+
+| Cost | Measured | How |
+|---|---|---|
+| **CPU per submission (warm)** | **1.25 CPU-seconds** | mean `cpu_ms` over 10 runs |
+| Wall-clock per submission (warm) | 0.21 s | mean `duration_ms` over 10 runs, inside the handler (excludes the network hop) |
+| Where the time goes | 99.5% in signal one | `model_ms` 210.1 of 211.1. The style signal is 0.3 ms |
+| One-off cold start | 5.8 s wall, 5.9 CPU-s | first scored request after `python app.py` (line 495, `cold_start: true`) |
+| A refused request | under 1 ms, no model call | the `rejected` records above |
+| Memory, steady state | 973 MB working set (peak 1,003 MB) | the serving process's `WorkingSet64` / `PeakWorkingSet64` in PowerShell, read right after the cost run |
+
+CPU is about 6× wall-clock because torch scores on several cores at once.
+So one submission ties up roughly six cores for a fifth of a second.
+Duration depends on text length. Shorter texts in the session took
+50–90 ms, so the 1.25 CPU-s figure is for a ~100-word post, not for
+anything.
