@@ -25,9 +25,11 @@ Routes:
 """
 
 import re
+import time
 import uuid
 
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
+from werkzeug.exceptions import HTTPException
 
 import audit
 import config
@@ -36,6 +38,66 @@ import scoring
 import stylometry
 
 app = Flask(__name__)
+
+
+# ── Instrumentation (capstone) ────────────────────────────────────────────────
+# Every audit entry written while handling a request carries how long that
+# request had taken and how much CPU it had burned by the time it was logged.
+# The timer is registered here, before the rate limiter attaches its own
+# before_request hook, so it starts first and a 429 still gets a duration.
+
+@app.before_request
+def _start_timer():
+    g.t_wall = time.perf_counter()
+    g.t_cpu = time.process_time()
+
+
+def _timing() -> dict:
+    """
+    Wall-clock and CPU milliseconds since the request arrived.
+
+    cpu_ms is process CPU time, summed over every thread, so it can exceed
+    duration_ms when torch scores on several cores at once. It is only
+    meaningful while one request is in flight at a time, which is how
+    measure_cost.py drives the service.
+    """
+    if not hasattr(g, "t_wall"):
+        return {"duration_ms": None, "cpu_ms": None}
+    return {
+        "duration_ms": round((time.perf_counter() - g.t_wall) * 1000, 1),
+        "cpu_ms": round((time.process_time() - g.t_cpu) * 1000, 1),
+    }
+
+
+@app.errorhandler(Exception)
+def _unhandled(exc):
+    """
+    A crash still leaves a record, and is still a 500.
+
+    This doesn't turn a bug into a polite 400: the caller gets a 500 and the
+    log gets the exception type and message, so a crash is visible in both
+    places instead of only in a terminal that's gone by tomorrow. HTTP errors
+    (404, 405, 429…) pass straight through to their normal handling.
+    """
+    if isinstance(exc, HTTPException):
+        return exc
+    payload = request.get_json(silent=True)
+    creator = payload.get("creator_id") if isinstance(payload, dict) else None
+    audit.log_rejection(
+        creator_id=creator if isinstance(creator, str) else "unknown",
+        reason="server_error",
+        event="error",
+        status="error",
+        route=request.path,
+        http_status=500,
+        error_type=type(exc).__name__,
+        error_message=str(exc)[:200],
+        **_timing(),
+    )
+    return jsonify({
+        "error": "server_error",
+        "message": "Something went wrong on our side. Nothing was scored.",
+    }), 500
 
 
 # ── Rate limiting — UNIT 8 ────────────────────────────────────────────────────
@@ -111,6 +173,9 @@ if config.RATE_LIMITING_ENABLED:
             creator_id=payload.get("creator_id", "unknown"),
             reason="rate_limited",
             limit=str(exc.description),
+            route=request.path,
+            http_status=429,
+            **_timing(),
         )
         return jsonify({
             "error": "rate_limited",
@@ -119,7 +184,7 @@ if config.RATE_LIMITING_ENABLED:
         }), 429
 
 
-# ── The worked example. Already works. Don't edit. ────────────────────────────
+# ── Input gate helper (capstone) ──────────────────────────────────────────────
 
 _READABLE_WORD = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)*")
 
@@ -134,6 +199,8 @@ def readable_words(text: str) -> list[str]:
     """
     return _READABLE_WORD.findall(text)
 
+
+# ── The worked example. Already works. Don't edit. ────────────────────────────
 
 @app.post("/ping")
 def ping():
@@ -219,20 +286,28 @@ def submit():
     """
     payload = request.get_json(silent=True)
 
+    def _reject(creator: str, reason: str, message: str, **fields):
+        """Log a refused request with its timing, and answer 400."""
+        audit.log_rejection(
+            creator_id=creator,
+            reason=reason,
+            route=request.path,
+            http_status=400,
+            **fields,
+            **_timing(),
+        )
+        return jsonify({"error": "invalid_request", "message": message}), 400
+
     # Capstone input gate, part 1: the body has to be a JSON object. A JSON
     # array (RQ07) used to reach payload.get() and crash with a 500 that left
     # nothing in the audit log.
     if payload is not None and not isinstance(payload, dict):
-        audit.log_rejection(
-            creator_id="unknown",
-            reason="body_not_object",
+        return _reject(
+            "unknown", "body_not_object",
+            "The request body must be a JSON object with 'text' and "
+            "'creator_id'.",
             body_type=type(payload).__name__,
         )
-        return jsonify({
-            "error": "invalid_request",
-            "message": "The request body must be a JSON object with 'text' "
-                       "and 'creator_id'.",
-        }), 400
     payload = payload or {}
 
     text = payload.get("text")
@@ -240,20 +315,17 @@ def submit():
 
     # Invalid input is refused before any scoring: no label, no decision logged.
     if not isinstance(text, str) or not text.strip():
-        audit.log_rejection(
-            creator_id=creator_id if isinstance(creator_id, str) else "unknown",
-            reason="missing_text",
+        return _reject(
+            creator_id if isinstance(creator_id, str) else "unknown",
+            "missing_text",
+            "'text' is required and must be non-empty.",
+            text_type=type(text).__name__,
         )
-        return jsonify({
-            "error": "invalid_request",
-            "message": "'text' is required and must be non-empty.",
-        }), 400
     if not isinstance(creator_id, str) or not creator_id.strip():
-        audit.log_rejection(creator_id="unknown", reason="missing_creator_id")
-        return jsonify({
-            "error": "invalid_request",
-            "message": "'creator_id' is required.",
-        }), 400
+        return _reject(
+            "unknown", "missing_creator_id", "'creator_id' is required.",
+            text_chars=len(text),
+        )
 
     # Capstone input gate, part 2: there has to be enough English prose for
     # the signals to read. Before this, one character (MF02) crashed with a
@@ -261,25 +333,27 @@ def submit():
     # right-to-left script (MF03–MF07) all got a label they had no basis for.
     word_count = len(readable_words(text))
     if word_count < config.MIN_READABLE_WORDS:
-        audit.log_rejection(
-            creator_id=creator_id,
-            reason="too_few_readable_words",
+        return _reject(
+            creator_id, "too_few_readable_words",
+            f"We could only find {word_count} readable English word(s) in "
+            f"this text. This service checks English prose of at least "
+            f"{config.MIN_READABLE_WORDS} words, so nothing was scored and "
+            "no label was given.",
             readable_words=word_count,
             text_chars=len(text),
+            text_preview=text[:60],
         )
-        return jsonify({
-            "error": "invalid_request",
-            "message": (
-                f"We could only find {word_count} readable English word(s) in "
-                f"this text. This service checks English prose of at least "
-                f"{config.MIN_READABLE_WORDS} words, so nothing was scored and "
-                "no label was given."
-            ),
-        }), 400
 
     content_id = str(uuid.uuid4())
+    # cold_start: the first scored request loads GPT-2 into memory, which
+    # dominates its duration. Recorded so warm and cold runs never get averaged
+    # together by accident.
+    cold_start = detector._model is None
+    t0 = time.perf_counter()
     model_score = detector.model_signal(text)
+    t1 = time.perf_counter()
     style_score = stylometry.style_signal(text)
+    t2 = time.perf_counter()
     combined_score = scoring.combine_signals(model_score, style_score)
     guess, label = scoring.score_to_label(combined_score)
     # Confidence: how far the score sits from the 0.5 midpoint, rescaled to
@@ -295,6 +369,16 @@ def submit():
         combined_score=combined_score,
         label=label,
         status="decided",
+        event="decided",
+        route=request.path,
+        http_status=200,
+        text_chars=len(text),
+        readable_words=word_count,
+        text_preview=text[:60],
+        cold_start=cold_start,
+        model_ms=round((t1 - t0) * 1000, 1),
+        style_ms=round((t2 - t1) * 1000, 1),
+        **_timing(),
     )
 
     return jsonify({
