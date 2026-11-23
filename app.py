@@ -200,6 +200,37 @@ def readable_words(text: str) -> list[str]:
     return _READABLE_WORD.findall(text)
 
 
+# Capstone improvement (Milestone 6). The most common words in any English
+# sentence: articles, pronouns, prepositions, auxiliaries, conjunctions and a
+# few very frequent adverbs. Real English prose of five or more words almost
+# always contains at least one. Keyboard mash ("asdf qwer zxcv hjkl uiop"),
+# lorem ipsum, and runs of letters in other languages almost never do. That
+# makes this a cheap test of "is this English prose?" that doesn't need the
+# model, so the gate still runs before GPT-2 loads.
+FUNCTION_WORDS = frozenset("""
+a an the this that these those
+i me my mine we us our ours you your yours he him his she her hers it its
+they them their theirs who whom whose which what
+am is are was were be been being have has had having do does did doing
+will would shall should can could may might must
+i'm i've i'll i'd you're you've you'll you'd he's she's it's we're we've
+we'll they're they've they'll that's there's what's who's let's
+can't won't don't doesn't didn't isn't aren't wasn't weren't haven't
+hasn't hadn't wouldn't shouldn't couldn't mustn't
+and but or nor so if then than because as until while though although
+of at by for with about against between into through during before after
+above below to from up down in out on off over under
+again further once here there when where why how
+all any both each few more most other some such no not only own same too
+very just now also
+""".split())
+
+
+def function_word_count(words: list[str]) -> int:
+    """How many of the readable words are common English function words."""
+    return sum(1 for w in words if w.lower() in FUNCTION_WORDS)
+
+
 # ── The worked example. Already works. Don't edit. ────────────────────────────
 
 @app.post("/ping")
@@ -331,7 +362,8 @@ def submit():
     # the signals to read. Before this, one character (MF02) crashed with a
     # 500, and control characters, punctuation, one giant word, emoji and
     # right-to-left script (MF03–MF07) all got a label they had no basis for.
-    word_count = len(readable_words(text))
+    words = readable_words(text)
+    word_count = len(words)
     if word_count < config.MIN_READABLE_WORDS:
         return _reject(
             creator_id, "too_few_readable_words",
@@ -340,6 +372,24 @@ def submit():
             f"{config.MIN_READABLE_WORDS} words, so nothing was scored and "
             "no label was given.",
             readable_words=word_count,
+            text_chars=len(text),
+            text_preview=text[:60],
+        )
+
+    # Capstone improvement (Milestone 6): enough letter-runs isn't enough. The
+    # first trials showed keyboard mash ("asdf qwer zxcv hjkl uiop") has
+    # exactly 5 of them, so it passed, loaded GPT-2 and was labelled "human".
+    # Require at least MIN_FUNCTION_WORDS common English function words.
+    fw_count = function_word_count(words)
+    if fw_count < config.MIN_FUNCTION_WORDS:
+        return _reject(
+            creator_id, "not_english_prose",
+            "This doesn't look like English sentences: none of the common "
+            "words English writing almost always uses (like 'the', 'is', "
+            "'on' or 'I') appear in it. This service checks English prose, "
+            "so nothing was scored and no label was given.",
+            readable_words=word_count,
+            function_words=fw_count,
             text_chars=len(text),
             text_preview=text[:60],
         )

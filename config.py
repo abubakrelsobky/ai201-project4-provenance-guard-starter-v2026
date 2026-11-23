@@ -124,6 +124,13 @@ RATE_LIMIT_STORAGE = "memory://"
 # still be scored. 5 sits between them.
 MIN_READABLE_WORDS = 5
 
+# Capstone improvement (Milestone 6). Of those readable words, at least this
+# many must be common English function words (app.py::FUNCTION_WORDS).
+# Why 1 and not more: the gate's job is to stop non-prose, not to judge style.
+# A short real post can be telegraphic ("Flight delayed 3 hrs. Ugh, again."),
+# so 1 is the smallest number that still separates letters from language.
+MIN_FUNCTION_WORDS = 1
+
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 
