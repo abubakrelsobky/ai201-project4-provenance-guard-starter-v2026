@@ -1874,3 +1874,173 @@ Met in all three trials. The highest single run across all 30 was 276.5 ms
 (trial 2), well under the 500 ms cap. The gate and the logging cost nothing
 a writer would notice: `model_ms` is within ~1 ms of `duration_ms` in every
 run.
+
+**Verdicts and Diagnosis**
+
+Each verdict is checked against the target exactly as it's worded in
+`criteria.md`. A target has to hold in all three trials.
+
+| Criterion | Target | Verdict (before) |
+|---|---|---|
+| C1. Bad requests refused, never labelled | 10/10 in each trial | **MISSED** (9, 9, 9) |
+| C2. One record per refusal, naming the right problem | 10/10 in each trial | **MISSED** (9, 9, 9) |
+| C3. Real short posts not turned away | ≤ 1 of 10 refused in each trial | **MET** (0, 0, 0) |
+| C4. A refused request never touches the model | 10/10 under 5 ms and `detector_loaded: false` | **MISSED** (9 + loaded, 8 + loaded, 9 + loaded) |
+| C5. Warm submission feels immediate | mean ≤ 300 ms and max ≤ 500 ms | **MET** (216/262, 231/277, 215/261) |
+
+**The pattern: three misses, one problem.** C1, C2 and C4 all fail on the
+same request, B3 (`"asdf qwer zxcv hjkl uiop"`), in all three trials. It's
+one fault seen from three angles. C1 is what the caller sees (a label instead
+of a 400). C2 is what the log keeps (a `decided` record instead of a
+`rejected` one). C4 is what it costs (GPT-2 loads). Only one C4 miss has a
+different cause (trial 2, B1, see below).
+
+**Diagnosis of B3 (C1, C2, C4).**
+- **Stage:** the input gate's prose check, part 2 of the gate in
+  `app.py::submit`, and specifically what it counts (`app.py::readable_words`).
+- **Mechanism:** `readable_words` counts *runs of Latin letters*
+  (`[A-Za-z]+`). It doesn't check whether they're *English words*. The mash
+  is five letter-runs separated by spaces, so its count is 5. That's exactly
+  `MIN_READABLE_WORDS`, so it passes (`readable_words: 5` in its record).
+  My criterion and README promised "no labels on non-text", but the gate
+  checks a proxy, "enough letter-runs", that keyboard mash satisfies.
+- **Why it then gets a confident `human` label, not `unsure`:** once past
+  the gate, both signals run on input they have no basis for.
+  - Signal one (GPT-2) finds the mash wildly unpredictable, which maps to
+    `model_score: 0.0049`, the most "human" a score gets.
+  - Signal two sees one "sentence" and falls back to a neutral
+    `style_score: 0.5`.
+  - The combined 0.2525 is under `HUMAN_THRESHOLD` (0.35).
+  - This is unit 8's blind spot (odd text raises perplexity, and high
+    perplexity reads as human) reached through a hole in the gate.
+- **And why it breaks C4:** B3 is the first request in each trial that
+  reaches `detector.model_signal`, so it pays the cold load:
+  5914 / 6101 / 6170 ms, `cold_start: true`.
+
+**Diagnosis of the trial-2 B1 miss (C4 only).**
+- **Stage:** the request preamble on a freshly started process. The timer
+  starts in `app.py::_start_timer` (`before_request`). Then Flask-Limiter's
+  `before_request` hook runs `rate_limit_key` (it parses the JSON body) and
+  hits its in-memory storage. Then `submit` checks the body type and calls
+  `_reject`, which reads the timer. B1 is refused at the first check, so
+  that preamble is everything that happens before the measurement.
+- **Mechanism:** the record shows `duration_ms: 18.9` with `cpu_ms: 0.0`.
+  The process spent 18.9 ms of wall-clock time but less than one ~15.6 ms
+  CPU tick on it, so it wasn't computing. It was waiting, either
+  descheduled by Windows or blocked on something outside the process.
+- **Is it a first-request cost in my code?** No. If it were, it would happen
+  every time. I tested that: eight more fresh restarts with B1 sent first
+  (`results/capstone_diag_first_request.txt`) took 0.6–1.0 ms every time. It's
+  1 stall in 11 fresh starts, which makes it an intermittent OS-level pause,
+  not a line of my code.
+- **What it means for C4:** a 5 ms target measured on wall-clock time is
+  exposed to the machine as well as to the code. The miss is real, and the
+  target stays. I've treated it as a separate problem from B3 and didn't aim
+  the improvement at it (see What's Still Broken).
+
+**The Improvement**
+
+**One change, aimed at the B3 diagnosis** (commit `5bf759c`). The prose check
+now also requires at least `MIN_FUNCTION_WORDS` (1) of the readable words to
+be a common English function word: articles, pronouns, prepositions,
+auxiliaries, conjunctions and a few very frequent adverbs (`the`, `is`, `on`,
+`I`, `now`, `again`…, in `app.py::FUNCTION_WORDS`). Text that fails is
+refused with `reason: "not_english_prose"`, before either signal runs.
+
+- **Why this rule:** function words are the most frequent words in English.
+  Real prose of five or more words almost always has one, and keyboard mash,
+  lorem ipsum and letter-runs in other languages don't. It's a set lookup,
+  so the gate still runs before GPT-2 and costs nothing measurable.
+- **Why 1 and not more:** the gate stops non-prose; it doesn't judge style.
+  Before running anything, I checked the rule offline against the inputs.
+  Two of the ten short posts have exactly one function word: P3, "Flight 2B
+  delayed 3 hrs. Ugh, **again**.", and P10, "Done. Finally. Sleeping **now**.
+  Goodnight, everyone." A threshold of 2 would have refused both and broken
+  C3. None of the 24 non-malformed texts from unit 8's attack set would be
+  newly refused.
+- **What it doesn't touch:** the two signals, the combining rule, the
+  thresholds and the 5-word cutoff. The ten short posts got the same guesses
+  in every trial before and after.
+
+**Before and after.** The same harness (`run_capstone_trials.py`), the same
+inputs, three fresh trials each, nothing changed except commit `5bf759c`.
+
+| Criterion | Target | Before: R1 | R2 | R3 | Verdict | After: R1 | R2 | R3 | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| C1. Bad requests refused, not labelled | 10/10 | 9/10 | 9/10 | 9/10 | **MISSED** | 10/10 | 10/10 | 10/10 | **MET** |
+| C2. One record naming the right problem | 10/10 | 9/10 | 9/10 | 9/10 | **MISSED** | 10/10 | 10/10 | 10/10 | **MET** |
+| C3. Short real posts not refused | ≤ 1 refused | 0 | 0 | 0 | **MET** | 0 | 0 | 0 | **MET** |
+| C4. Refusals never touch the model | 10/10 < 5 ms, not loaded | 9, loaded | 8, loaded | 9, loaded | **MISSED** | 10, not loaded | 10, not loaded | 10, not loaded | **MET** |
+| C5. Warm mean ≤ 300 ms, max ≤ 500 ms | both | 216 / 262 | 231 / 277 | 215 / 261 | **MET** | 236 / 371 | 222 / 258 | 199 / 227 | **MET** |
+
+Result files:
+- Before: `results/capstone_trial_{1,2,3}_2026-11-23_1349*.{md,json}`
+- After: `results/capstone_trial_{1,2,3}_2026-11-23_1354*.{md,json}`
+
+*After, trial 1: the B3 record* (`audit.py::log_rejection`, through
+`app.py::submit`):
+
+```json
+{"timestamp": "2026-11-23T11:54:21+00:00", "creator_id": "t1-b3", "event": "rejected", "status": "rejected", "reason": "not_english_prose", "route": "/submit", "http_status": 400, "readable_words": 5, "function_words": 0, "text_chars": 24, "text_preview": "asdf qwer zxcv hjkl uiop", "duration_ms": 0.9, "cpu_ms": 0.0}
+```
+
+…what the caller got back:
+
+```json
+{"error": "invalid_request", "message": "This doesn't look like English sentences: none of the common words English writing almost always uses (like 'the', 'is', 'on' or 'I') appear in it. This service checks English prose, so nothing was scored and no label was given."}
+```
+
+…and `GET /health` straight after the ten bad requests (`app.py::health`):
+
+```json
+{"detector_loaded": false, "detector_model": "gpt2", "log_entries": 622, "ok": true, "rate_limiting": true}
+```
+
+Logged `duration_ms` for the bad requests after the change:
+
+| | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 | B10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Trial 1 | 0.9 | 0.8 | 0.9 | 0.9 | 1.0 | 0.9 | 0.7 | 0.8 | 0.8 | 0.5 |
+| Trial 2 | 0.6 | 0.7 | 0.6 | 0.6 | 0.9 | 0.6 | 0.5 | 0.7 | 0.7 | 0.7 |
+| Trial 3 | 0.7 | 0.6 | 0.9 | 0.7 | 0.7 | 0.5 | 0.6 | 0.9 | 0.7 | 0.6 |
+
+GPT-2 now loads on P1, the first real post (`cold_start: true` on P1 in all
+three trials). That's the first request that has a reason to need it.
+
+**Did it help?** Yes, for the problem it was aimed at. All three B3-caused
+misses (C1, C2, C4) are now met in every trial. Keyboard mash gets a clear
+400 instead of "probably written by a person", and it no longer costs a 6 s
+model load. C3 held at 0 refused, so the stricter gate didn't turn away any
+real post. Three honest qualifications:
+
+1. **C4 being met is partly luck.** The change doesn't touch the
+   first-request stall from trial 2. That stall just didn't recur in these
+   three fresh starts. Counting the probe, it has happened once in 14 fresh
+   starts, so a fourth trial could miss C4 again for that reason alone.
+2. **C5's worst run got worse in trial 1 (371 ms against 262–277 ms
+   before), but still under the 500 ms cap.** The change adds a set lookup
+   on requests that are scored, which is microseconds. `model_ms` accounts
+   for the time in that run, so I read it as machine noise in GPT-2's
+   scoring, not a cost of the change. With one run I can't prove that, and
+   I'm reporting it rather than hiding it.
+3. **C1 and C2 are now met partly by construction.** The fix was designed
+   after seeing B3, and B3 is the input that now passes. That's what fixing a
+   diagnosed fault looks like, but it means these trials can't show the rule
+   *generalises*. Non-prose that contains a function word, like
+   `"the the the the the"` or `"is on at by to"`, has 5 readable words and
+   several function words. It would still pass the gate and get a label.
+
+**If all five are met, were the targets too low?** C1, C2 and C4 started
+as misses, so they weren't too low. They found a real hole. Two targets
+look soft now:
+- **C3** allowed 1 refusal and got 0 in all six trials. But three posts sit
+  right at a line: P6 has exactly 5 readable words, and P3 and P10 have
+  exactly 1 function word. So C3 is passing on a thin margin, not an easy
+  one.
+- **C5** has the most slack. It allowed 300 ms and the means were 199–236 ms.
+
+The criterion I'd tighten is **C1**. I'd keep the target at 10/10 but run it
+against a *second* set of ten non-prose inputs written after this fix and
+never shown to it: repeated function words, lorem ipsum, word salad from a
+dictionary. Today's 10/10 is on inputs the gate has now seen, and that's the
+weakest part of the evidence.
