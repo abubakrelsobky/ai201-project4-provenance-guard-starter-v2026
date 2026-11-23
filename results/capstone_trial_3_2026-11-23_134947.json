@@ -1,0 +1,1082 @@
+{
+  "trial": 3,
+  "stamp": "2026-11-23_134947",
+  "health_start": {
+    "detector_loaded": false,
+    "detector_model": "gpt2",
+    "log_entries": 581,
+    "ok": true,
+    "rate_limiting": true
+  },
+  "bad": [
+    {
+      "body": "please check my essay",
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "The request body must be a JSON object with 'text' and 'creator_id'."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:48+00:00",
+          "creator_id": "unknown",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "body_not_object",
+          "route": "/submit",
+          "http_status": 400,
+          "body_type": "str",
+          "duration_ms": 0.6,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B1",
+      "kind": "body"
+    },
+    {
+      "body": 42,
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "The request body must be a JSON object with 'text' and 'creator_id'."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:48+00:00",
+          "creator_id": "unknown",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "body_not_object",
+          "route": "/submit",
+          "http_status": 400,
+          "body_type": "int",
+          "duration_ms": 0.8,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B2",
+      "kind": "body"
+    },
+    {
+      "body": {
+        "text": "asdf qwer zxcv hjkl uiop",
+        "creator_id": "t3-b3"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.2525,
+        "confidence": 0.495,
+        "content_id": "806f94a8-3f4f-43dc-bebb-869c8dd134f8",
+        "creator_id": "t3-b3",
+        "guess": "human",
+        "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+        "model_score": 0.0049,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "content_id": "806f94a8-3f4f-43dc-bebb-869c8dd134f8",
+          "creator_id": "t3-b3",
+          "guess": "human",
+          "model_score": 0.0049,
+          "style_score": 0.5,
+          "combined_score": 0.2525,
+          "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 24,
+          "readable_words": 5,
+          "text_preview": "asdf qwer zxcv hjkl uiop",
+          "cold_start": true,
+          "model_ms": 6169.4,
+          "style_ms": 0.1,
+          "duration_ms": 6170.0,
+          "cpu_ms": 6375.0
+        }
+      ],
+      "id": "B3",
+      "kind": "text"
+    },
+    {
+      "body": [
+        {
+          "text": "A perfectly normal sentence about my weekend plans.",
+          "creator_id": "b4"
+        }
+      ],
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "The request body must be a JSON object with 'text' and 'creator_id'."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "creator_id": "unknown",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "body_not_object",
+          "route": "/submit",
+          "http_status": 400,
+          "body_type": "list",
+          "duration_ms": 0.7,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B4",
+      "kind": "body"
+    },
+    {
+      "body": {
+        "text": "ok",
+        "creator_id": "t3-b5"
+      },
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "We could only find 1 readable English word(s) in this text. This service checks English prose of at least 5 words, so nothing was scored and no label was given."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "creator_id": "t3-b5",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "too_few_readable_words",
+          "route": "/submit",
+          "http_status": 400,
+          "readable_words": 1,
+          "text_chars": 2,
+          "text_preview": "ok",
+          "duration_ms": 0.6,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B5",
+      "kind": "text"
+    },
+    {
+      "body": {
+        "text": "12345 67890 2024",
+        "creator_id": "t3-b6"
+      },
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "We could only find 0 readable English word(s) in this text. This service checks English prose of at least 5 words, so nothing was scored and no label was given."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "creator_id": "t3-b6",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "too_few_readable_words",
+          "route": "/submit",
+          "http_status": 400,
+          "readable_words": 0,
+          "text_chars": 16,
+          "text_preview": "12345 67890 2024",
+          "duration_ms": 0.6,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B6",
+      "kind": "text"
+    },
+    {
+      "body": {
+        "text": "#### **** //// ~~~~",
+        "creator_id": "t3-b7"
+      },
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "We could only find 0 readable English word(s) in this text. This service checks English prose of at least 5 words, so nothing was scored and no label was given."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "creator_id": "t3-b7",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "too_few_readable_words",
+          "route": "/submit",
+          "http_status": 400,
+          "readable_words": 0,
+          "text_chars": 19,
+          "text_preview": "#### **** //// ~~~~",
+          "duration_ms": 0.8,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B7",
+      "kind": "text"
+    },
+    {
+      "body": {
+        "text": "Привет, как дела? Всё хорошо, спасибо.",
+        "creator_id": "t3-b8"
+      },
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "We could only find 0 readable English word(s) in this text. This service checks English prose of at least 5 words, so nothing was scored and no label was given."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "creator_id": "t3-b8",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "too_few_readable_words",
+          "route": "/submit",
+          "http_status": 400,
+          "readable_words": 0,
+          "text_chars": 38,
+          "text_preview": "Привет, как дела? Всё хорошо, спасибо.",
+          "duration_ms": 0.6,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B8",
+      "kind": "text"
+    },
+    {
+      "body": {
+        "text": "lol k",
+        "creator_id": "t3-b9"
+      },
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "We could only find 2 readable English word(s) in this text. This service checks English prose of at least 5 words, so nothing was scored and no label was given."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "creator_id": "t3-b9",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "too_few_readable_words",
+          "route": "/submit",
+          "http_status": 400,
+          "readable_words": 2,
+          "text_chars": 5,
+          "text_preview": "lol k",
+          "duration_ms": 0.6,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B9",
+      "kind": "text"
+    },
+    {
+      "body": {
+        "text": "👍👍👍 nice 👍👍",
+        "creator_id": "t3-b10"
+      },
+      "status": 400,
+      "response": {
+        "error": "invalid_request",
+        "message": "We could only find 1 readable English word(s) in this text. This service checks English prose of at least 5 words, so nothing was scored and no label was given."
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "creator_id": "t3-b10",
+          "event": "rejected",
+          "status": "rejected",
+          "reason": "too_few_readable_words",
+          "route": "/submit",
+          "http_status": 400,
+          "readable_words": 1,
+          "text_chars": 11,
+          "text_preview": "👍👍👍 nice 👍👍",
+          "duration_ms": 0.6,
+          "cpu_ms": 0.0
+        }
+      ],
+      "id": "B10",
+      "kind": "text"
+    }
+  ],
+  "health_after_bad": {
+    "detector_loaded": true,
+    "detector_model": "gpt2",
+    "log_entries": 591,
+    "ok": true,
+    "rate_limiting": true
+  },
+  "posts": [
+    {
+      "body": {
+        "text": "Ran 5k in 24:10 this morning, new PB!",
+        "creator_id": "t3-p1"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.2679,
+        "confidence": 0.4642,
+        "content_id": "ffd47e9d-13ab-4b00-8cfc-57c8cf364051",
+        "creator_id": "t3-p1",
+        "guess": "human",
+        "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+        "model_score": 0.0358,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:54+00:00",
+          "content_id": "ffd47e9d-13ab-4b00-8cfc-57c8cf364051",
+          "creator_id": "t3-p1",
+          "guess": "human",
+          "model_score": 0.0358,
+          "style_score": 0.5,
+          "combined_score": 0.2679,
+          "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 37,
+          "readable_words": 7,
+          "text_preview": "Ran 5k in 24:10 this morning, new PB!",
+          "cold_start": false,
+          "model_ms": 49.6,
+          "style_ms": 0.0,
+          "duration_ms": 50.5,
+          "cpu_ms": 187.5
+        }
+      ],
+      "id": "P1"
+    },
+    {
+      "body": {
+        "text": "Can't make it tonight, sorry. Next week?",
+        "creator_id": "t3-p2"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.4868,
+        "confidence": 0.0264,
+        "content_id": "e8850b02-9aa3-43d4-bfa9-4d0ee76e4bc3",
+        "creator_id": "t3-p2",
+        "guess": "unsure",
+        "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+        "model_score": 0.4736,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "e8850b02-9aa3-43d4-bfa9-4d0ee76e4bc3",
+          "creator_id": "t3-p2",
+          "guess": "unsure",
+          "model_score": 0.4736,
+          "style_score": 0.5,
+          "combined_score": 0.4868,
+          "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 40,
+          "readable_words": 7,
+          "text_preview": "Can't make it tonight, sorry. Next week?",
+          "cold_start": false,
+          "model_ms": 53.9,
+          "style_ms": 0.1,
+          "duration_ms": 54.7,
+          "cpu_ms": 437.5
+        }
+      ],
+      "id": "P2"
+    },
+    {
+      "body": {
+        "text": "Flight 2B delayed 3 hrs. Ugh, again.",
+        "creator_id": "t3-p3"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.2726,
+        "confidence": 0.4548,
+        "content_id": "fd3076e3-a735-405d-ae83-7d3a65415d31",
+        "creator_id": "t3-p3",
+        "guess": "human",
+        "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+        "model_score": 0.0452,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "fd3076e3-a735-405d-ae83-7d3a65415d31",
+          "creator_id": "t3-p3",
+          "guess": "human",
+          "model_score": 0.0452,
+          "style_score": 0.5,
+          "combined_score": 0.2726,
+          "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 36,
+          "readable_words": 6,
+          "text_preview": "Flight 2B delayed 3 hrs. Ugh, again.",
+          "cold_start": false,
+          "model_ms": 54.4,
+          "style_ms": 0.0,
+          "duration_ms": 55.1,
+          "cpu_ms": 390.6
+        }
+      ],
+      "id": "P3"
+    },
+    {
+      "body": {
+        "text": "Best ramen in town, hands down. 10/10.",
+        "creator_id": "t3-p4"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.5685,
+        "confidence": 0.137,
+        "content_id": "72d02ccc-3575-45f7-bb0b-4b0c64908deb",
+        "creator_id": "t3-p4",
+        "guess": "unsure",
+        "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+        "model_score": 0.6371,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "72d02ccc-3575-45f7-bb0b-4b0c64908deb",
+          "creator_id": "t3-p4",
+          "guess": "unsure",
+          "model_score": 0.6371,
+          "style_score": 0.5,
+          "combined_score": 0.5685,
+          "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 38,
+          "readable_words": 6,
+          "text_preview": "Best ramen in town, hands down. 10/10.",
+          "cold_start": false,
+          "model_ms": 61.8,
+          "style_ms": 0.0,
+          "duration_ms": 62.6,
+          "cpu_ms": 468.8
+        }
+      ],
+      "id": "P4"
+    },
+    {
+      "body": {
+        "text": "Mum's birthday is on the 14th, don't forget!",
+        "creator_id": "t3-p5"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.5525,
+        "confidence": 0.105,
+        "content_id": "81fdeaae-00ad-4483-bcf5-3662afd5d718",
+        "creator_id": "t3-p5",
+        "guess": "unsure",
+        "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+        "model_score": 0.6051,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "81fdeaae-00ad-4483-bcf5-3662afd5d718",
+          "creator_id": "t3-p5",
+          "guess": "unsure",
+          "model_score": 0.6051,
+          "style_score": 0.5,
+          "combined_score": 0.5525,
+          "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 44,
+          "readable_words": 8,
+          "text_preview": "Mum's birthday is on the 14th, don't forget!",
+          "cold_start": false,
+          "model_ms": 60.7,
+          "style_ms": 0.0,
+          "duration_ms": 61.4,
+          "cpu_ms": 406.2
+        }
+      ],
+      "id": "P5"
+    },
+    {
+      "body": {
+        "text": "Got 92% on the stats midterm!!",
+        "creator_id": "t3-p6"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.2531,
+        "confidence": 0.4938,
+        "content_id": "6fd2d44a-da39-4fe4-8a55-108c88d6cf01",
+        "creator_id": "t3-p6",
+        "guess": "human",
+        "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+        "model_score": 0.0063,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "6fd2d44a-da39-4fe4-8a55-108c88d6cf01",
+          "creator_id": "t3-p6",
+          "guess": "human",
+          "model_score": 0.0063,
+          "style_score": 0.5,
+          "combined_score": 0.2531,
+          "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 30,
+          "readable_words": 5,
+          "text_preview": "Got 92% on the stats midterm!!",
+          "cold_start": false,
+          "model_ms": 47.3,
+          "style_ms": 0.0,
+          "duration_ms": 48.1,
+          "cpu_ms": 281.2
+        }
+      ],
+      "id": "P6"
+    },
+    {
+      "body": {
+        "text": "Room 4.12 is double-booked at 3pm.",
+        "creator_id": "t3-p7"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.4101,
+        "confidence": 0.1798,
+        "content_id": "c745774c-4f6c-4f0b-a42b-ff69b7a1e2dc",
+        "creator_id": "t3-p7",
+        "guess": "unsure",
+        "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+        "model_score": 0.3201,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "c745774c-4f6c-4f0b-a42b-ff69b7a1e2dc",
+          "creator_id": "t3-p7",
+          "guess": "unsure",
+          "model_score": 0.3201,
+          "style_score": 0.5,
+          "combined_score": 0.4101,
+          "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 34,
+          "readable_words": 6,
+          "text_preview": "Room 4.12 is double-booked at 3pm.",
+          "cold_start": false,
+          "model_ms": 64.1,
+          "style_ms": 0.0,
+          "duration_ms": 64.8,
+          "cpu_ms": 484.4
+        }
+      ],
+      "id": "P7"
+    },
+    {
+      "body": {
+        "text": "Café on Rue Cler was closed. Went home.",
+        "creator_id": "t3-p8"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.2656,
+        "confidence": 0.4688,
+        "content_id": "46e10573-fd27-4e88-8685-f8bf238bb5bd",
+        "creator_id": "t3-p8",
+        "guess": "human",
+        "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+        "model_score": 0.0312,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "46e10573-fd27-4e88-8685-f8bf238bb5bd",
+          "creator_id": "t3-p8",
+          "guess": "human",
+          "model_score": 0.0312,
+          "style_score": 0.5,
+          "combined_score": 0.2656,
+          "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 39,
+          "readable_words": 8,
+          "text_preview": "Café on Rue Cler was closed. Went home.",
+          "cold_start": false,
+          "model_ms": 71.6,
+          "style_ms": 0.0,
+          "duration_ms": 72.4,
+          "cpu_ms": 453.1
+        }
+      ],
+      "id": "P8"
+    },
+    {
+      "body": {
+        "text": "New phone, who dis? 😂 Text me back.",
+        "creator_id": "t3-p9"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.2592,
+        "confidence": 0.4816,
+        "content_id": "a2746e20-0c95-4cf3-8897-e1d0ef99fcb0",
+        "creator_id": "t3-p9",
+        "guess": "human",
+        "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+        "model_score": 0.0184,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "a2746e20-0c95-4cf3-8897-e1d0ef99fcb0",
+          "creator_id": "t3-p9",
+          "guess": "human",
+          "model_score": 0.0184,
+          "style_score": 0.5,
+          "combined_score": 0.2592,
+          "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 35,
+          "readable_words": 7,
+          "text_preview": "New phone, who dis? 😂 Text me back.",
+          "cold_start": false,
+          "model_ms": 66.6,
+          "style_ms": 0.0,
+          "duration_ms": 67.4,
+          "cpu_ms": 296.9
+        }
+      ],
+      "id": "P9"
+    },
+    {
+      "body": {
+        "text": "Done. Finally. Sleeping now. Goodnight, everyone.",
+        "creator_id": "t3-p10"
+      },
+      "status": 200,
+      "response": {
+        "combined_score": 0.4104,
+        "confidence": 0.1792,
+        "content_id": "b4739010-00b6-44e7-9da1-7d7347b48aa1",
+        "creator_id": "t3-p10",
+        "guess": "unsure",
+        "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+        "model_score": 0.3209,
+        "style_score": 0.5
+      },
+      "log_added": [
+        {
+          "timestamp": "2026-11-23T11:49:55+00:00",
+          "content_id": "b4739010-00b6-44e7-9da1-7d7347b48aa1",
+          "creator_id": "t3-p10",
+          "guess": "unsure",
+          "model_score": 0.3209,
+          "style_score": 0.5,
+          "combined_score": 0.4104,
+          "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+          "status": "decided",
+          "event": "decided",
+          "route": "/submit",
+          "http_status": 200,
+          "text_chars": 49,
+          "readable_words": 6,
+          "text_preview": "Done. Finally. Sleeping now. Goodnight, everyone.",
+          "cold_start": false,
+          "model_ms": 74.6,
+          "style_ms": 0.0,
+          "duration_ms": 75.7,
+          "cpu_ms": 359.4
+        }
+      ],
+      "id": "P10"
+    }
+  ],
+  "warm": {
+    "body": {
+      "text": "Warm-up submission, excluded from the C5 numbers on purpose. It just makes sure GPT-2 is loaded.",
+      "creator_id": "t3-warm"
+    },
+    "status": 200,
+    "response": {
+      "combined_score": 0.2117,
+      "confidence": 0.5766,
+      "content_id": "37aa6fd0-eefe-48d4-9226-6e3c4c9f5c26",
+      "creator_id": "t3-warm",
+      "guess": "human",
+      "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+      "model_score": 0.0618,
+      "style_score": 0.3616
+    },
+    "log_added": [
+      {
+        "timestamp": "2026-11-23T11:49:55+00:00",
+        "content_id": "37aa6fd0-eefe-48d4-9226-6e3c4c9f5c26",
+        "creator_id": "t3-warm",
+        "guess": "human",
+        "model_score": 0.0618,
+        "style_score": 0.3616,
+        "combined_score": 0.2117,
+        "label": "We think this was probably written by a person. Our checks found the kind of variety in wording and sentence length that is typical of human writing.",
+        "status": "decided",
+        "event": "decided",
+        "route": "/submit",
+        "http_status": 200,
+        "text_chars": 96,
+        "readable_words": 17,
+        "text_preview": "Warm-up submission, excluded from the C5 numbers on purpose.",
+        "cold_start": false,
+        "model_ms": 86.3,
+        "style_ms": 0.9,
+        "duration_ms": 88.0,
+        "cpu_ms": 437.5
+      }
+    ]
+  },
+  "measure_cost_stdout": "Sending 10 submissions to http://127.0.0.1:5000/submit  (creator prefix cost-20261123-134956)\n  run  1: HTTP 200\n  run  2: HTTP 200\n  run  3: HTTP 200\n  run  4: HTTP 200\n  run  5: HTTP 200\n  run  6: HTTP 200\n  run  7: HTTP 200\n  run  8: HTTP 200\n  run  9: HTTP 200\n  run 10: HTTP 200\n\nText: 536 characters. Warm runs: 10. Cold runs: 0.\n\nper warm run        mean       min       max\nduration_ms        215.0     196.4     260.8\ncpu_ms            1284.4     890.6    1390.6\nmodel_ms           214.0     195.6     259.7\nstyle_ms             0.3       0.2       0.4\n",
+  "cost_entries": [
+    {
+      "timestamp": "2026-11-23T11:49:56+00:00",
+      "content_id": "529113e0-4a23-425e-b5c1-f930da1488f4",
+      "creator_id": "cost-20261123-134956-01",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 238.7,
+      "style_ms": 0.3,
+      "duration_ms": 239.8,
+      "cpu_ms": 890.6
+    },
+    {
+      "timestamp": "2026-11-23T11:49:56+00:00",
+      "content_id": "63f545bb-3d26-4bfb-aaf2-262f05037137",
+      "creator_id": "cost-20261123-134956-02",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 195.6,
+      "style_ms": 0.3,
+      "duration_ms": 196.4,
+      "cpu_ms": 1265.6
+    },
+    {
+      "timestamp": "2026-11-23T11:49:56+00:00",
+      "content_id": "998051aa-6f3d-4777-8c51-8b91cf32d3b6",
+      "creator_id": "cost-20261123-134956-03",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 221.4,
+      "style_ms": 0.3,
+      "duration_ms": 222.3,
+      "cpu_ms": 1390.6
+    },
+    {
+      "timestamp": "2026-11-23T11:49:57+00:00",
+      "content_id": "8676ffd2-219c-4feb-8a95-27f48c7c2f35",
+      "creator_id": "cost-20261123-134956-04",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 209.7,
+      "style_ms": 0.2,
+      "duration_ms": 210.6,
+      "cpu_ms": 1390.6
+    },
+    {
+      "timestamp": "2026-11-23T11:49:57+00:00",
+      "content_id": "73a03db4-bfc2-462d-bf9d-820a655f1a5e",
+      "creator_id": "cost-20261123-134956-05",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 203.0,
+      "style_ms": 0.3,
+      "duration_ms": 203.9,
+      "cpu_ms": 1359.4
+    },
+    {
+      "timestamp": "2026-11-23T11:49:57+00:00",
+      "content_id": "bb8238e9-8932-4ec1-abec-fc89dca0d90f",
+      "creator_id": "cost-20261123-134956-06",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 207.2,
+      "style_ms": 0.3,
+      "duration_ms": 208.1,
+      "cpu_ms": 1375.0
+    },
+    {
+      "timestamp": "2026-11-23T11:49:57+00:00",
+      "content_id": "dd6b6d3e-6011-4d12-a9ff-ad7b63870c65",
+      "creator_id": "cost-20261123-134956-07",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 200.4,
+      "style_ms": 0.3,
+      "duration_ms": 201.4,
+      "cpu_ms": 1281.2
+    },
+    {
+      "timestamp": "2026-11-23T11:49:58+00:00",
+      "content_id": "cdb2254c-2d49-48fb-a5a7-5265b4514a67",
+      "creator_id": "cost-20261123-134956-08",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 208.3,
+      "style_ms": 0.3,
+      "duration_ms": 209.2,
+      "cpu_ms": 1203.1
+    },
+    {
+      "timestamp": "2026-11-23T11:49:58+00:00",
+      "content_id": "1da3b6bf-eec4-490e-b600-ce53ceca4c7a",
+      "creator_id": "cost-20261123-134956-09",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 259.7,
+      "style_ms": 0.4,
+      "duration_ms": 260.8,
+      "cpu_ms": 1390.6
+    },
+    {
+      "timestamp": "2026-11-23T11:49:58+00:00",
+      "content_id": "2d7fb3b9-9536-4283-8ea2-44324d8ffde8",
+      "creator_id": "cost-20261123-134956-10",
+      "guess": "unsure",
+      "model_score": 0.4219,
+      "style_score": 0.422,
+      "combined_score": 0.4219,
+      "label": "We can't tell whether this was written by a person or with help from AI. Our checks gave mixed results, which happens often with genuine human writing, especially plain or formal styles. This is not an accusation, and it shouldn't be treated as evidence either way.",
+      "status": "decided",
+      "event": "decided",
+      "route": "/submit",
+      "http_status": 200,
+      "text_chars": 536,
+      "readable_words": 99,
+      "text_preview": "We got to the campsite about four, later than planned becaus",
+      "cold_start": false,
+      "model_ms": 196.4,
+      "style_ms": 0.3,
+      "duration_ms": 197.4,
+      "cpu_ms": 1296.9
+    }
+  ],
+  "scores": {
+    "C1": {
+      "count": 9,
+      "of": 10,
+      "n500": 0,
+      "labelled": [
+        "B3"
+      ],
+      "statuses": {
+        "B1": 400,
+        "B2": 400,
+        "B3": 200,
+        "B4": 400,
+        "B5": 400,
+        "B6": 400,
+        "B7": 400,
+        "B8": 400,
+        "B9": 400,
+        "B10": 400
+      },
+      "met": false
+    },
+    "C2": {
+      "count": 9,
+      "of": 10,
+      "failing": {
+        "B3": [
+          {
+            "status": "decided",
+            "http_status": 200,
+            "reason": null,
+            "duration_ms": 6170.0
+          }
+        ]
+      },
+      "met": false
+    },
+    "C3": {
+      "refused": 0,
+      "refused_ids": [],
+      "n429": 0,
+      "statuses": {
+        "P1": 200,
+        "P2": 200,
+        "P3": 200,
+        "P4": 200,
+        "P5": 200,
+        "P6": 200,
+        "P7": 200,
+        "P8": 200,
+        "P9": 200,
+        "P10": 200
+      },
+      "met": true
+    },
+    "C4": {
+      "under_5ms": 9,
+      "of": 10,
+      "durations": {
+        "B1": 0.6,
+        "B2": 0.8,
+        "B3": 6170.0,
+        "B4": 0.7,
+        "B5": 0.6,
+        "B6": 0.6,
+        "B7": 0.8,
+        "B8": 0.6,
+        "B9": 0.6,
+        "B10": 0.6
+      },
+      "detector_loaded_after": true,
+      "detector_loaded_at_start": false,
+      "met": false
+    },
+    "C5": {
+      "runs": 10,
+      "mean": 215.0,
+      "max": 260.8,
+      "min": 196.4,
+      "met": true
+    }
+  }
+}
