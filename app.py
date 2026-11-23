@@ -24,6 +24,7 @@ Routes:
     GET  /health      is the service up, and is the model loaded
 """
 
+import re
 import uuid
 
 from flask import Flask, jsonify, request
@@ -119,6 +120,20 @@ if config.RATE_LIMITING_ENABLED:
 
 
 # ── The worked example. Already works. Don't edit. ────────────────────────────
+
+_READABLE_WORD = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)*")
+
+
+def readable_words(text: str) -> list[str]:
+    """
+    Runs of Latin letters, with apostrophes allowed inside ("don't").
+
+    This is what the input gate counts. Punctuation, digits, emoji, control
+    characters and non-Latin scripts contribute nothing, because neither
+    signal can read them.
+    """
+    return _READABLE_WORD.findall(text)
+
 
 @app.post("/ping")
 def ping():
@@ -238,6 +253,28 @@ def submit():
         return jsonify({
             "error": "invalid_request",
             "message": "'creator_id' is required.",
+        }), 400
+
+    # Capstone input gate, part 2: there has to be enough English prose for
+    # the signals to read. Before this, one character (MF02) crashed with a
+    # 500, and control characters, punctuation, one giant word, emoji and
+    # right-to-left script (MF03–MF07) all got a label they had no basis for.
+    word_count = len(readable_words(text))
+    if word_count < config.MIN_READABLE_WORDS:
+        audit.log_rejection(
+            creator_id=creator_id,
+            reason="too_few_readable_words",
+            readable_words=word_count,
+            text_chars=len(text),
+        )
+        return jsonify({
+            "error": "invalid_request",
+            "message": (
+                f"We could only find {word_count} readable English word(s) in "
+                f"this text. This service checks English prose of at least "
+                f"{config.MIN_READABLE_WORDS} words, so nothing was scored and "
+                "no label was given."
+            ),
         }), 400
 
     content_id = str(uuid.uuid4())

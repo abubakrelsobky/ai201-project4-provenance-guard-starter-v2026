@@ -110,6 +110,21 @@ RATE_LIMIT_PER_DAY = 50
 RATE_LIMIT_STORAGE = "memory://"
 
 
+# ─── Input gate (capstone) ───────────────────────────────────────────────────
+#
+# /submit refuses text with fewer than this many readable English words
+# before either signal runs. "Readable" means a run of Latin letters, with
+# apostrophes allowed inside it (see app.py::readable_words). Both signals are
+# English-only: GPT-2 and the style measures have nothing to say about
+# punctuation, emoji, control characters or another script.
+#
+# Why 5: the most any broken malformed attack had was 3 (MF03, control
+# characters around "test" and "red"). The shortest genuine human text in the
+# attack set, FP08 ("Went for a run. Legs hurt. Worth it."), has 8 and must
+# still be scored. 5 sits between them.
+MIN_READABLE_WORDS = 5
+
+
 # ─── Paths ───────────────────────────────────────────────────────────────────
 
 LOG_DIR = ROOT / "logs"
