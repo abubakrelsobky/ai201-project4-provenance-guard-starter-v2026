@@ -1508,9 +1508,9 @@ Shape **B: harden against failure.** My unit 8 attack run left 7 of the 20
 malformed-input attacks broken. Two of them crash `/submit` with a 500 and
 leave nothing in the audit log: a one-character text (MF02) and a body that is
 a JSON array instead of an object (RQ07). Five of them get a confident-looking
-label on text that isn't writing at all: control characters, only punctuation,
-one very long word, only emoji, and right-to-left script (MF03–MF07). MF03 and
-MF04 were labelled `human`. The extension is **one input gate at the top of
+label on text that neither English-only signal can read: control characters,
+only punctuation, one very long word, only emoji, and right-to-left script
+(MF03–MF07). MF03 and MF04 were labelled `human`. The extension is **one input gate at the top of
 `app.py::submit`**. It decides whether a request contains real prose before any
 signal runs. Anything that fails gets a 400 with a named reason, and the
 rejection is written to the audit log. When I'm finished I'll claim this:
@@ -1551,3 +1551,28 @@ the same point (the top of `submit`), with the same response shape (a logged
 would have been a second piece, so I cut it (see above). I estimate under an
 hour of building, which leaves the unit for the run path, criteria, trials
 and write-up.
+
+**The Extension**
+
+The gate sits at the top of `app.py::submit` and runs before either signal,
+so a refused request never loads the model and never gets a `content_id`. It
+checks two things, in this order:
+
+| Check | Refused when | Logged `reason` | Extra logged fields |
+|---|---|---|---|
+| Body shape | the JSON body parses but isn't an object (e.g. an array) | `body_not_object` | `body_type` |
+| Readable prose | `text` has fewer than `MIN_READABLE_WORDS` (5) readable words | `too_few_readable_words` | `readable_words`, `text_chars` |
+
+The existing unit 7 checks (missing or non-string `text`, missing
+`creator_id`) still run between the two. A "readable word" is a run of Latin
+letters, with apostrophes allowed inside it (`app.py::readable_words`).
+Digits, punctuation, emoji, control characters and non-Latin scripts count
+for nothing, because GPT-2 and the style measures are English-only. Every
+refusal is a 400 with `error` and a `message` written for the writer, and an
+audit entry with `status: rejected`. The cutoff of 5 and the reason for it
+are in `config.py`. The most any broken malformed attack had was 3 readable
+words, and the shortest genuine human text in the attack set (FP08) has 8
+and still has to be scored.
+
+The response contract for a valid submission hasn't changed. `/ping`,
+`/appeal`, `/log`, `/health` and rate limiting weren't touched.
