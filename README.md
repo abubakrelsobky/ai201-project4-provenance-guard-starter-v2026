@@ -1721,3 +1721,156 @@ So one submission ties up roughly six cores for a fifth of a second.
 Duration depends on text length. Shorter texts in the session took
 50–90 ms, so the 1.25 CPU-s figure is for a ~100-word post, not for
 anything.
+
+**Run Log and Verdicts**
+
+Three trials, nothing changed between them. Each trial is one call to
+`python run_capstone_trials.py --trial N`, which follows "How every trial is
+run" in `criteria.md`. It starts a fresh `python app.py`, sends the 10 bad
+requests one at a time (recording the log lines each one added), calls
+`GET /health`, sends the 10 short posts, sends one warm-up and runs
+`measure_cost.py`, then stops the service. The criteria were committed
+(`e8cce8a`, tightened in `804f00f`) and the harness was committed (`6f58cb2`)
+before trial 1.
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| C1. Bad requests refused, never crashed on or labelled | 10 of 10 get 400, none labelled | 9/10 (B3 labelled `human`) | 9/10 (B3) | 9/10 (B3) | **MISSED** |
+| C2. Every refusal leaves exactly one record naming the right problem | 10 of 10 | 9/10 (B3: `decided`, not `rejected`) | 9/10 (B3) | 9/10 (B3) | **MISSED** |
+| C3. Real short posts not turned away | at most 1 of 10 refused | 0/10 refused | 0/10 | 0/10 | **MET** |
+| C4. A refused request never touches the model | 10 of 10 under 5 ms, and `detector_loaded: false` | 9/10; loaded **true** | 8/10; loaded **true** | 9/10; loaded **true** | **MISSED** |
+| C5. Warm submission feels immediate | mean ≤ 300 ms, max ≤ 500 ms | mean 216.0, max 262.1 | mean 231.2, max 276.5 | mean 215.0, max 260.8 | **MET** |
+
+Raw evidence, one file per trial, in `results/`:
+- `capstone_trial_1_2026-11-23_134917.md` / `.json`
+- `capstone_trial_2_2026-11-23_134934.md` / `.json`
+- `capstone_trial_3_2026-11-23_134947.md` / `.json`
+
+The `.json` files hold every request body, status, response body and log line.
+There's also a `_server.txt` for each trial, with the service's own console
+output.
+
+*Is it really re-running?* The model scores are identical across the three
+trials (B3 is `0.2525` every time, and P1 is `0.2679`). That's expected:
+GPT-2 runs on CPU in eval mode with no sampling, so the same text gets the
+same perplexity. Everything else differs between trials: each one has its
+own server start, `content_id`s (P1 is `bef199cb…`, `2b21dc64…`,
+`ffd47e9d…`), timestamps, and timings. C5's mean moves between 215 and
+231 ms, and B3's cold load between 5.9 and 6.2 s.
+
+Output below is from **trial 1** unless marked otherwise.
+
+**C1 output.** HTTP status and response body for each bad request, as
+received by `run_capstone_trials.py::send`. The responses are produced by
+`app.py::submit`, with refusals going through its inner `_reject`:
+
+```
+B1   HTTP 400  {"error": "invalid_request"}
+B2   HTTP 400  {"error": "invalid_request"}
+B3   HTTP 200  {"guess": "human", "combined_score": 0.2525}
+B4   HTTP 400  {"error": "invalid_request"}
+B5   HTTP 400  {"error": "invalid_request"}
+B6   HTTP 400  {"error": "invalid_request"}
+B7   HTTP 400  {"error": "invalid_request"}
+B8   HTTP 400  {"error": "invalid_request"}
+B9   HTTP 400  {"error": "invalid_request"}
+B10  HTTP 400  {"error": "invalid_request"}
+```
+
+No 500s in any trial. The one miss is the same in all three: the keyboard
+mash `"asdf qwer zxcv hjkl uiop"` is scored, and the writer is told it was
+"probably written by a person".
+
+**C2 output.** The exact line each request added to `logs/audit.jsonl`, in
+order, written by `audit.py::log_rejection` (refusals) and
+`audit.py::log_decision` (B3). Only `label` is cut, for width:
+
+```jsonl
+{"timestamp": "2026-11-23T11:49:19+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "body_not_object", "route": "/submit", "http_status": 400, "body_type": "str", "duration_ms": 1.0, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:19+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "body_not_object", "route": "/submit", "http_status": 400, "body_type": "int", "duration_ms": 1.2, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:25+00:00", "content_id": "21763d41-97bc-4971-aa8e-3d30652016c1", "creator_id": "t1-b3", "guess": "human", "model_score": 0.0049, "style_score": 0.5, "combined_score": 0.2525, "label": "We think this was probably written by a …", "status": "decided", "event": "decided", "route": "/submit", "http_status": 200, "text_chars": 24, "readable_words": 5, "text_preview": "asdf qwer zxcv hjkl uiop", "cold_start": true, "model_ms": 5913.4, "style_ms": 0.1, "duration_ms": 5914.3, "cpu_ms": 5984.4}
+{"timestamp": "2026-11-23T11:49:25+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "body_not_object", "route": "/submit", "http_status": 400, "body_type": "list", "duration_ms": 0.6, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:25+00:00", "creator_id": "t1-b5", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 1, "text_chars": 2, "text_preview": "ok", "duration_ms": 0.6, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:25+00:00", "creator_id": "t1-b6", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 0, "text_chars": 16, "text_preview": "12345 67890 2024", "duration_ms": 0.8, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:25+00:00", "creator_id": "t1-b7", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 0, "text_chars": 19, "text_preview": "#### **** //// ~~~~", "duration_ms": 0.5, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:25+00:00", "creator_id": "t1-b8", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 0, "text_chars": 38, "text_preview": "Привет, как дела? Всё хорошо, спасибо.", "duration_ms": 0.8, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:25+00:00", "creator_id": "t1-b9", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 2, "text_chars": 5, "text_preview": "lol k", "duration_ms": 0.7, "cpu_ms": 0.0}
+{"timestamp": "2026-11-23T11:49:25+00:00", "creator_id": "t1-b10", "event": "rejected", "status": "rejected", "reason": "too_few_readable_words", "route": "/submit", "http_status": 400, "readable_words": 1, "text_chars": 11, "text_preview": "👍👍👍 nice 👍👍", "duration_ms": 0.6, "cpu_ms": 0.0}
+```
+
+Every request left exactly one line, and every reason names the right kind
+of problem: `body_not_object` for B1, B2 and B4, and `too_few_readable_words`
+for the text cases. The single failure is B3, which left a `decided` record
+instead of a `rejected` one. Look at `readable_words: 5`: the gate counted
+the mash as five words, which is exactly the cutoff.
+
+**C3 output.** Status, the gate's word count and the guess for each short
+post, from `run_capstone_trials.py::send` and the `log_decision` lines that
+`app.py::submit` wrote:
+
+```
+P1   HTTP 200  readable_words=7  guess=human  Ran 5k in 24:10 this morning, new PB!
+P2   HTTP 200  readable_words=7  guess=unsure  Can't make it tonight, sorry. Next week?
+P3   HTTP 200  readable_words=6  guess=human  Flight 2B delayed 3 hrs. Ugh, again.
+P4   HTTP 200  readable_words=6  guess=unsure  Best ramen in town, hands down. 10/10.
+P5   HTTP 200  readable_words=8  guess=unsure  Mum's birthday is on the 14th, don't forget!
+P6   HTTP 200  readable_words=5  guess=human  Got 92% on the stats midterm!!
+P7   HTTP 200  readable_words=6  guess=unsure  Room 4.12 is double-booked at 3pm.
+P8   HTTP 200  readable_words=8  guess=human  Café on Rue Cler was closed. Went home.
+P9   HTTP 200  readable_words=7  guess=human  New phone, who dis? 😂 Text me back.
+P10  HTTP 200  readable_words=6  guess=unsure  Done. Finally. Sleeping now. Goodnight, everyone.
+```
+
+Met with room to spare in the count, but with no margin on one post. P6
+("Got 92% on the stats midterm!!") has exactly 5 readable words, because "92%"
+counts for nothing, so it's sitting right on the cutoff. P8's "Café" is
+counted as "Caf", which still reaches 8.
+
+**C4 output.** `GET /health` (`app.py::health`) at the fresh start and again
+straight after the 10 bad requests:
+
+```
+{"detector_loaded": false, "detector_model": "gpt2", "log_entries": 519, "ok": true, "rate_limiting": true}
+{"detector_loaded": true, "detector_model": "gpt2", "log_entries": 529, "ok": true, "rate_limiting": true}
+```
+
+Logged `duration_ms` per bad request, from the C2 lines in each trial's
+`.json`:
+
+| | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 | B10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Trial 1 | 1.0 | 1.2 | **5914.3** | 0.6 | 0.6 | 0.8 | 0.5 | 0.8 | 0.7 | 0.6 |
+| Trial 2 | **18.9** | 0.8 | **6101.2** | 0.8 | 0.6 | 0.7 | 0.7 | 0.6 | 0.6 | 0.8 |
+| Trial 3 | 0.6 | 0.8 | **6170.0** | 0.7 | 0.6 | 0.6 | 0.8 | 0.6 | 0.6 | 0.6 |
+
+The model was loaded by B3 every time: its record says `cold_start: true`.
+Trial 2 also has a second, separate miss. B1, the very first request after
+the restart, took 18.9 ms. Here is that line from
+`capstone_trial_2_2026-11-23_134934.json`:
+
+```json
+{"timestamp": "2026-11-23T11:49:35+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "body_not_object", "route": "/submit", "http_status": 400, "body_type": "str", "duration_ms": 18.9, "cpu_ms": 0.0}
+```
+
+**C5 output.** `measure_cost.py::main`, as captured by the harness in trial 1
+(trials 2 and 3 are in their `.md` files):
+
+```
+Sending 10 submissions to http://127.0.0.1:5000/submit  (creator prefix cost-20261123-134926)
+  run  1: HTTP 200
+  ...
+  run 10: HTTP 200
+
+Text: 536 characters. Warm runs: 10. Cold runs: 0.
+
+per warm run        mean       min       max
+duration_ms        216.0     185.6     262.1
+cpu_ms            1260.9    1000.0    1484.4
+model_ms           215.0     184.5     261.2
+style_ms             0.2       0.2       0.3
+```
+
+Met in all three trials. The highest single run across all 30 was 276.5 ms
+(trial 2), well under the 500 ms cap. The gate and the logging cost nothing
+a writer would notice: `model_ms` is within ~1 ms of `duration_ms` in every
+run.
