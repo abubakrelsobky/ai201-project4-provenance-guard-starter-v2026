@@ -24,22 +24,41 @@ to `logs/audit.jsonl`. Stop it with Ctrl+C.
 
 ### From a clean checkout
 
+> ⚠️ **Build the venv with Python 3.13 (or 3.11/3.12) by name.** A plain
+> `python -m venv` uses whatever `python` is first on your PATH. On the laptop
+> this was tested on, that was **3.14**: the install succeeded, then `test.py`
+> failed with `[FAIL] Python version`. Check with `python --version` first. If
+> it says 3.14, use the version-specific command below.
+
 macOS / Linux:
 
 ```bash
 git clone https://github.com/abubakrelsobky/ai201-project4-provenance-guard-starter-v2026.git
 cd ai201-project4-provenance-guard-starter-v2026
-python3 -m venv .venv
+python3.13 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 python detector.py        # one-time: downloads GPT-2 (~526 MB) and scores a sample
-python test.py            # should end "N passed, 0 failed"
+python test.py            # should end "9 passed, 0 failed"
 python app.py
 ```
 
-Windows (PowerShell): the same, except `python -m venv .venv` and
-`.venv\Scripts\Activate.ps1`.
+Windows (PowerShell):
+
+```powershell
+git clone https://github.com/abubakrelsobky/ai201-project4-provenance-guard-starter-v2026.git
+cd ai201-project4-provenance-guard-starter-v2026
+py -3.13 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python detector.py
+python test.py
+python app.py
+```
+
+`py -0` lists the Python versions the Windows launcher can see.
 
 Then, in a **second terminal with the venv active**:
 
