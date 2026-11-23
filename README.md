@@ -1489,3 +1489,65 @@ better placed to carry it.
 ---
 
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**
+
+---
+
+## Capstone
+
+**The System**
+
+I'm extending **Provenance Guard**, the Flask service from units 7 and 8. It
+takes a piece of text through `POST /submit`, scores it with a local GPT-2
+perplexity signal and a style signal, and returns a human / unsure / AI label
+that can be appealed. Everything in the sections above this heading is the
+system as it already worked. Everything below is new this unit.
+
+**The Shape**
+
+Shape **B: harden against failure.** My unit 8 attack run left 7 of the 20
+malformed-input attacks broken. Two of them crash `/submit` with a 500 and
+leave nothing in the audit log: a one-character text (MF02) and a body that is
+a JSON array instead of an object (RQ07). Five of them get a confident-looking
+label on text that isn't writing at all: control characters, only punctuation,
+one very long word, only emoji, and right-to-left script (MF03–MF07). MF03 and
+MF04 were labelled `human`. The extension is **one input gate at the top of
+`app.py::submit`**. It decides whether a request contains real prose before any
+signal runs. Anything that fails gets a 400 with a named reason, and the
+rejection is written to the audit log. When I'm finished I'll claim this:
+*every request to `/submit` either gets a label on real prose or a logged
+refusal that says why. No 500s, and no labels on non-text.*
+
+The run path and the structured log are required whatever the shape, so I'm
+doing them alongside the extension rather than as part of it. This project
+takes **Path B (local with logs)**, because torch plus the ~550 MB GPT-2
+weights don't fit a 512 MB free host. Each log record gains a duration field,
+and that timing is where my cost number (seconds of CPU per submission) comes
+from.
+
+**Out of Scope**
+
+- **I'm not fixing evasion (EV01–EV09) or touching either signal.** That needs
+  a redesign of signal one, not hardening. It's the biggest open problem, and
+  it's also the one most likely to swallow the whole unit.
+- **I'm not moving the thresholds or the combining rule.** Unit 8's criteria 3
+  and 5 stay missed. Retuning would change the system's good-path behaviour,
+  and this unit is about the bad path.
+- **I'm not stripping prompt-injection text (PI02).** It's the same family as
+  the evasion problem, because odd formatting raises perplexity, and it belongs
+  with that fix.
+- **I'm not wrapping scoring in a catch-all `try/except`.** It would turn
+  every future bug into a quiet 400 instead of naming it. The gate's job is to
+  stop bad input before it reaches the model, and I want an unexpected crash to
+  stay visible.
+- **I'm not changing rate limits, `/appeal`, or `/log`, and I'm not hosting it
+  (Path A).**
+
+**Size check**
+
+I broke the plan into its pieces: refusing non-object bodies, and refusing
+text that doesn't have enough real words. Both are the same check, made at
+the same point (the top of `submit`), with the same response shape (a logged
+400 with a reason), so I count this as one piece. The catch-all safety net
+would have been a second piece, so I cut it (see above). I estimate under an
+hour of building, which leaves the unit for the run path, criteria, trials
+and write-up.
