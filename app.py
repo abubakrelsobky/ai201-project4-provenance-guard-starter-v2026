@@ -202,7 +202,23 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+
+    # Capstone input gate, part 1: the body has to be a JSON object. A JSON
+    # array (RQ07) used to reach payload.get() and crash with a 500 that left
+    # nothing in the audit log.
+    if payload is not None and not isinstance(payload, dict):
+        audit.log_rejection(
+            creator_id="unknown",
+            reason="body_not_object",
+            body_type=type(payload).__name__,
+        )
+        return jsonify({
+            "error": "invalid_request",
+            "message": "The request body must be a JSON object with 'text' "
+                       "and 'creator_id'.",
+        }), 400
+    payload = payload or {}
 
     text = payload.get("text")
     creator_id = payload.get("creator_id")
