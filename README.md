@@ -1722,6 +1722,32 @@ Duration depends on text length. Shorter texts in the session took
 50–90 ms, so the 1.25 CPU-s figure is for a ~100-word post, not for
 anything.
 
+*Cross-check from the trials.* The six capstone trials (Milestones 5 and 6)
+each ran `measure_cost.py` again. The six warm means were 216, 231, 215,
+236, 222 and 199 ms, so the Milestone 3 figure of 211 ms holds up.
+
+**A hundred people a day.** Assume each person submits one ~100-word post,
+which is what I measured:
+
+```
+CPU:        100 submissions × 1.25 CPU-s   = 125 CPU-seconds/day   (~2.1 CPU-minutes)
+Wall-clock: 100 submissions × 0.21 s       =  21 seconds of scoring/day
+Cold start: 1 per service start × 5.8 s    =  5.8 s, once (if it stays up all day)
+Memory:     973 MB resident, 24 h a day    =  ~1 GB held all day, whatever the traffic
+```
+
+For a hundred people a day, the compute is trivial: about two CPU-minutes,
+or 0.15% of one core's day (125 ÷ 86,400 s). What this really costs is the
+**~1 GB of memory that has to stay loaded all day** to keep answers at
+0.2 s instead of 6 s. So the bill is set by the machine size, not by the
+number of people. That's why the 512 MB free tier is ruled out, and why the
+cheapest option that works is a small always-on machine with 2 GB of RAM,
+not more CPU. (Prices weren't part of what I measured, so I'm giving the
+machine size rather than a dollar figure.) The same arithmetic says one
+laptop core could handle about 69,000 such submissions a day (86,400 ÷
+1.25), so traffic would have to grow by hundreds of times before CPU became
+the limit.
+
 **Run Log and Verdicts**
 
 Three trials, nothing changed between them. Each trial is one call to
@@ -2044,3 +2070,117 @@ against a *second* set of ten non-prose inputs written after this fix and
 never shown to it: repeated function words, lorem ipsum, word salad from a
 dictionary. Today's 10/10 is on inputs the gate has now seen, and that's the
 weakest part of the evidence.
+
+**What's Still Broken**
+
+After the improvement, no criterion is missed: all five are met in all three
+trials. This section still isn't empty, because "met" rests on weaker ground
+in some places than others.
+
+- **C1's target is too easy now. I'd tighten its inputs, not its number.**
+  10/10 is the right number, since a gate either refuses junk or it doesn't.
+  But the fix was designed after seeing B3, and B3 is now part of the test
+  that passes. Non-prose built from function words gets through:
+  `"the the the the the"` and `"is on at by to"` each have 5 readable words
+  and 5 function words, so they'd be scored and labelled.
+  - *What I'd do:* tighten C1 to "10/10 on a **second** set of ten non-prose
+    inputs written after the fix and never run against it" (repeated
+    function words, word salad, lorem ipsum, and the like). On the gate
+    side, require that most of the readable words be *distinct* and that
+    the function words make up a believable share of the text, not just
+    one.
+  - *Why I stopped:* the unit allows one improvement, and I spent it on the
+    diagnosed fault (B3). Any further rule has to be re-checked against C3,
+    because every extra rule is another way to refuse a real writer.
+- **C4 can still miss on a stall that isn't in my code.** Once in 14 fresh
+  starts, the first request took 18.9 ms of wall-clock with 0 ms of CPU.
+  - *What I'd do:* add `cpu_ms` to C4's evidence, so a refusal that's slow
+    because the *machine* paused can be told apart from one that's slow
+    because the *code* did work. Then run more fresh starts, 30 or so, to
+    get a real rate instead of "1 in 14". I wouldn't loosen the 5 ms target:
+    it's what tells me the model was never touched.
+  - *Why I stopped:* the improvement went to B3 because it was a real bug
+    with a real cost (a wrong "human" label and a 6 s model load). The stall
+    hasn't cost anyone anything I can measure.
+- **C3 passes, but on a thin margin.** No post was refused in six trials,
+  but three sit exactly on a line. P6 ("Got 92% on the stats midterm!!") has
+  exactly 5 readable words. P3 and P10 have exactly 1 function word each. A
+  slightly more telegraphic post, like "Flight delayed 3 hrs. Ugh.", would
+  be refused.
+  - *What I'd do:* count digits-with-letters like "92%", "5k" and "3pm" as
+    words, and treat accented letters as letters, so "Café" stops being
+    "Caf".
+  - *Why I stopped:* both change what the gate counts, and a change to the
+    gate needs the full before/after again. That's a second improvement.
+- **Targets I set too low:** C5 had the most slack. It allowed 300 ms and
+  every trial's mean was 199–236 ms. I'd tighten it to a mean of 250 ms.
+  That's still above every trial so far, but low enough that a real slowdown
+  in scoring would show up as a miss instead of being absorbed.
+- **Still broken from unit 8 and out of scope here:** evasion (EV01–EV09),
+  the PI02 fake `SYSTEM:` header, and unit 8's missed criteria 3 and 5 are
+  all problems in the signals and thresholds, not the gate. They're
+  unchanged, as the scope said they would be.
+
+**What I'd Do Next**
+
+If this were real and I had another unit, the first thing I'd do is collect
+a few hundred *real* submissions, both short posts and junk, and measure
+the gate's two error rates on them: real writing refused, and non-prose
+let through. Both of my gate criteria (C1, C3) pass on inputs I wrote
+myself, three real posts already sit on a line, and the cost the gate
+imposes on actual writers is the one number in this project that nobody
+has measured yet.
+
+**How I Used AI**
+
+I used Claude Code (the CLI assistant) throughout the capstone, and it did
+most of the hands-on work. I chose to extend Provenance Guard, accepted its
+recommendation of shape B and Path B, and directed each milestone. This is
+what it did, and where I had to check it:
+
+- **Scope and build (Milestones 1–2):**
+  - *What it did:* read my unit 8 "What's Still Broken" and attack results,
+    proposed the input gate as the single piece of work, and wrote the gate
+    code in `app.py` and `config.py`.
+  - *What I checked:* it picked the 5-word cutoff from the attack set
+    itself. The most any broken malformed attack had was 3 words, and FP08
+    (8 words) had to stay scored. It also caught that its own wording
+    called Arabic text "not writing", and changed it to "text the
+    English-only signals can't read".
+- **Run path and instrumentation (Milestone 3):**
+  - *What it did:* wrote the logging, `measure_cost.py`, RUNNING.md and the
+    lock file, then tested RUNNING.md from a fresh clone.
+  - *Where it went wrong first:* that test failed. My PATH Python is 3.14,
+    so it fixed the instructions. It also noticed Git Bash had turned the
+    emoji test input into `????`. It resent the input properly and flagged
+    the bad record instead of hiding it.
+- **Criteria (Milestone 4):**
+  - *What it did:* the milestone says not to have a model write criteria,
+    and Claude said so. Our class then allowed AI-written criteria for this
+    unit, so Claude drafted them.
+  - *What changed before any run:* it ran the three-question self-check on
+    its own draft. That found real gaps: the rate limiter could fail C1/C3
+    for reasons unrelated to the gate, C2 repeated C1, and no input tested
+    something the gate wasn't designed for. All of that was fixed before
+    any trial (commit `804f00f`). I own these criteria now, but I didn't
+    write the first draft.
+- **Trials, diagnosis and improvement (Milestones 5–6):**
+  - *What it did:* wrote `run_capstone_trials.py` and committed it before
+    running anything, ran the trials, traced the three misses to one cause
+    (B3 passing the gate), and ran an extra probe that showed the C4 stall
+    doesn't reproduce.
+  - *What it checked:* it tested the function-word fix offline before
+    re-running, and that showed a threshold of 2 would have broken C3. It
+    also reported the after-run's weak points (luck on C4, a slow C5 run,
+    C1 passing by construction) instead of a clean sweep.
+- **My part:** I chose the system, accepted the shape and the path,
+  started each milestone, and decided to let Claude draft the criteria once
+  the class allowed it. The verdicts can be checked against the raw
+  `results/` files, and the commit history shows the order: criteria
+  (`e8cce8a`, `804f00f`) → harness (`6f58cb2`) → first results (`d89dc55`)
+  → fix (`5bf759c`) → after results (`b461bf7`).
+
+What stood out about working this way: the most useful moments came from
+checks run *after* a first result looked fine. The clean-clone test caught
+the Python version, and the self-check caught the criteria gaps. Neither
+problem was visible until something was run against it.
