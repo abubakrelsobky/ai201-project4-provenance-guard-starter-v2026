@@ -1,0 +1,11 @@
+# Diagnostic probe for C4's trial-2 miss (B1 at 18.9 ms on the first request after a restart).
+# 8 fresh restarts of python app.py via run_capstone_trials.start_service; B1 sent twice after each.
+# Run 2026-11-23, after the three 'before' trials, before any code change. Probe audit lines were not kept.
+restart 1: first    0.9 ms (cpu 0.0)   second   0.8 ms (cpu 15.6)
+restart 2: first    0.9 ms (cpu 15.6)   second   0.5 ms (cpu 0.0)
+restart 3: first    1.0 ms (cpu 0.0)   second   0.9 ms (cpu 0.0)
+restart 4: first    0.7 ms (cpu 0.0)   second   1.0 ms (cpu 0.0)
+restart 5: first    0.9 ms (cpu 0.0)   second   1.0 ms (cpu 0.0)
+restart 6: first    0.8 ms (cpu 0.0)   second   0.9 ms (cpu 0.0)
+restart 7: first    0.8 ms (cpu 0.0)   second   0.6 ms (cpu 0.0)
+restart 8: first    0.6 ms (cpu 0.0)   second   0.7 ms (cpu 0.0)
