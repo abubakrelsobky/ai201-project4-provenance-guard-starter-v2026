@@ -8,6 +8,92 @@ assumed — the starter ships one that already answers.
 
 ---
 
+## Capstone run path — Path B, local with logs
+
+This is how the capstone version runs and how its evidence was produced.
+Everything below this section is the original starter reference.
+
+**The command that starts it** (from the repo root, venv active):
+
+```bash
+python app.py
+```
+
+It serves on `http://127.0.0.1:5000` and appends one JSON record per request
+to `logs/audit.jsonl`. Stop it with Ctrl+C.
+
+### From a clean checkout
+
+macOS / Linux:
+
+```bash
+git clone https://github.com/abubakrelsobky/ai201-project4-provenance-guard-starter-v2026.git
+cd ai201-project4-provenance-guard-starter-v2026
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python detector.py        # one-time: downloads GPT-2 (~526 MB) and scores a sample
+python test.py            # should end "N passed, 0 failed"
+python app.py
+```
+
+Windows (PowerShell): the same, except `python -m venv .venv` and
+`.venv\Scripts\Activate.ps1`.
+
+Then, in a **second terminal with the venv active**:
+
+```bash
+curl -X POST http://127.0.0.1:5000/ping -H "Content-Type: application/json" -d '{"message": "hello"}'
+python measure_cost.py    # 10 timed submissions, prints the per-run cost
+```
+
+In PowerShell, use `curl.exe` on one line with the quotes escaped:
+`curl.exe -X POST http://127.0.0.1:5000/ping -H "Content-Type: application/json" -d '{\"message\": \"hello\"}'`
+
+### What the environment needs
+
+| Thing | Value |
+|---|---|
+| Python | 3.11–3.13 (the recorded run used **3.13.17**). Not 3.14 |
+| Dependencies | ranges in `requirements.txt`; the exact versions that ran are in `requirements.lock.txt` (`pip install -r requirements.lock.txt` to reproduce them exactly) |
+| Key packages that ran | Flask 3.1.3, Flask-Limiter 3.12, torch 2.15.0 (CPU), transformers 4.57.6, requests 2.34.2 |
+| Model | `gpt2` from Hugging Face, **526 MB** on disk in `~/.cache/huggingface/hub/models--gpt2`, downloaded by `python detector.py` |
+| Installed venv | ~886 MB |
+| Memory | the starter's check wants 4 GB+; the recorded run was on a 16 GB laptop |
+| Accounts / keys | none |
+| Network | only for the install and the one-time model download |
+
+### What to expect
+
+- **The first scored request after a start takes ~6–10 s.** It loads GPT-2 into
+  memory. Its log record says `"cold_start": true`. Later requests take tens
+  of milliseconds. `GET /health` shows `detector_loaded`.
+- **The sixth submission in a minute from one `creator_id` gets a 429.** That's
+  the rate limit from unit 8, and it's logged.
+- `python app.py` runs Flask's development server with debug on (it prints a
+  warning saying so). That is deliberate for a local run on loopback. Debug
+  turns itself off if `HOST` is anything but loopback. `gunicorn app:app` is
+  the production server, but gunicorn doesn't run on Windows, and this project
+  isn't hosted (below).
+
+### Why this isn't hosted
+
+The free tier offers 512 MB of memory. torch alone takes ~200–800 MB, and
+GPT-2's weights are 526 MB on disk and loaded into RAM to score. That's over
+budget before the first request. A free host also has no persistent disk, so
+the model would download again after every idle spin-down. So this project
+takes Path B, and that was decided before any deployment attempt.
+
+### Where the record is
+
+`logs/audit.jsonl`, one JSON object per line, append-only and committed.
+Every request to `/submit` writes exactly one record: `decided`, `rejected`
+(400 or 429) or `error` (500). `GET /log` reads it back over HTTP. The fields
+are documented in README.md under **Capstone → Instrumentation**.
+
+---
+
 ## Before your first class
 
 ```bash
